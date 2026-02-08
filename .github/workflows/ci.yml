@@ -20,7 +20,8 @@ jobs:
       - name: Setup Neovim
         uses: rhysd/action-setup-vim@v1
         with:
-          neovim: ${{ matrix.neovim }}
+          neovim: true
+          version: ${{ matrix.neovim }}
 
       - name: Setup Lua
         uses: leafo/gh-actions-lua@v11

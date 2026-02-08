@@ -1,22 +1,54 @@
 local transform = require("blink-ai.transform")
 
 describe("transform.items_from_output", function()
-  it("maps streamed outputs to completion items", function()
-    local items = transform.items_from_output({ "one", "two" }, {
+  it("maps paired outputs to completion items", function()
+    local items = transform.items_from_output({
+      "if value then",
+      "if value then\n  print(value)\nend",
+      "unused",
+    }, {
       cursor = { 1, 3 },
       keyword = "abc",
     }, {
       effective_provider = "openai",
+      suggestion_mode = "paired",
     })
 
     assert.are.equal(2, #items)
-    assert.are.equal("one", items[1].label)
-    assert.are.equal("two", items[2].label)
+    assert.are.equal("if value then", items[1].label)
+    assert.truthy(items[2].textEdit.newText:find("\n", 1, true))
     assert.are.equal("blink-ai", items[1].data.source)
     assert.are.equal("openai", items[1].data.provider)
     assert.are.equal(0, items[1].textEdit.range.start.line)
     assert.are.equal(0, items[1].textEdit.range.start.character)
     assert.are.equal(3, items[1].textEdit.range["end"].character)
+  end)
+
+  it("can keep raw mode output unshaped", function()
+    local items = transform.items_from_output({ "one", "two", "three" }, {
+      cursor = { 1, 3 },
+      keyword = "abc",
+    }, {
+      suggestion_mode = "raw",
+    })
+
+    assert.are.equal(3, #items)
+    assert.are.equal("one", items[1].textEdit.newText)
+    assert.are.equal("two", items[2].textEdit.newText)
+    assert.are.equal("three", items[3].textEdit.newText)
+  end)
+
+  it("collapses to one item when paired fallback would duplicate", function()
+    local items = transform.items_from_output({ "return value", "next" }, {
+      cursor = { 1, 12 },
+      line_before_cursor = "return value",
+      line_after_cursor = "",
+    }, {
+      suggestion_mode = "paired",
+    })
+
+    assert.are.equal(1, #items)
+    assert.are.equal("return value", items[1].textEdit.newText)
   end)
 
   it("applies transform_items hook when provided", function()
@@ -58,7 +90,10 @@ describe("transform.items_from_output", function()
       start = { line = 0, character = 2 },
       ["end"] = { line = 0, character = 6 },
     }
-    local items = transform.items_from_output({ "one", "two" }, nil, {}, range)
+    local items = transform.items_from_output({
+      "if value then",
+      "if value then\n  print(value)\nend",
+    }, nil, {}, range)
 
     assert.are.equal(2, #items)
     assert.are.equal(2, items[1].textEdit.range.start.character)

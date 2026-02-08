@@ -45,6 +45,7 @@ provider_overrides          Per-filetype provider/model overrides.
 debounce_ms                 Debounce delay before requests.
 max_tokens                  Max tokens requested per completion.
 n_completions               Number of completion candidates.
+suggestion_mode             "paired" (default) or "raw" output shaping.
 context.before_cursor_lines Lines before cursor to include.
 context.after_cursor_lines  Lines after cursor to include.
 context.enable_treesitter   Include syntax node metadata when available.
@@ -56,6 +57,10 @@ notify_on_error             Notify via vim.notify on errors.
 providers                   Provider-specific configuration.
 system_prompt               String or function(ctx) -> string override.
 transform_items             fun(items) -> items hook.
+
+Suggestion modes:
+- paired: at most two items (single-line + full-form/multiline).
+- raw: return provider candidates unchanged.
 
 Note: timeout_ms is configured in blink.cmp under
 sources.providers.ai.timeout_ms.

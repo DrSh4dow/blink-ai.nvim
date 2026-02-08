@@ -26,6 +26,22 @@ local function first_line(text)
   return line or text
 end
 
+local function is_blank(text)
+  return text == nil or text:match("^%s*$") ~= nil
+end
+
+local function has_newline(text)
+  return text:find("[\r\n]") ~= nil
+end
+
+local function single_line_variant(text)
+  local line = first_line(text):gsub("%s+$", "")
+  if not is_blank(line) then
+    return line
+  end
+  return text:gsub("[\r\n]+", " "):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
 local function truncate(text, max)
   if #text <= max then
     return text
@@ -121,8 +137,44 @@ local function clone_range(range)
   }
 end
 
+local function paired_entries(entries)
+  local primary = nil
+  for _, text in ipairs(entries) do
+    if not is_blank(text) then
+      primary = text
+      break
+    end
+  end
+  if not primary then
+    return {}
+  end
+
+  local single_line = single_line_variant(primary)
+  if is_blank(single_line) then
+    return {}
+  end
+
+  local multiline = nil
+  for _, text in ipairs(entries) do
+    if not is_blank(text) and has_newline(text) then
+      multiline = text
+      break
+    end
+  end
+  local full = multiline or primary
+
+  if full ~= single_line or has_newline(full) then
+    return { single_line, full }
+  end
+  return { single_line }
+end
+
 function M.items_from_output(output, ctx, cfg, fixed_range)
   local entries = normalize_output(output)
+  local suggestion_mode = (cfg and cfg.suggestion_mode) or "paired"
+  if suggestion_mode == "paired" then
+    entries = paired_entries(entries)
+  end
   local items = {}
   local provider = cfg and (cfg.effective_provider or cfg.provider) or "unknown"
   local edit_range = fixed_range or M.lsp_range_from_ctx(ctx)

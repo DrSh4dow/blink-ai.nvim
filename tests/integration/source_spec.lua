@@ -49,6 +49,52 @@ describe("source integration", function()
     assert.are.equal(1, #calls[#calls].items)
   end)
 
+  it("shapes streamed candidates into paired suggestions", function()
+    blink_ai.register_provider("test_paired", {
+      name = "test_paired",
+      setup = function() end,
+      complete = function(_, on_chunk, on_done)
+        on_chunk({
+          "if condition then",
+          "if condition then\n  print('value')\nend",
+          "third choice",
+        })
+        on_done()
+        return function() end
+      end,
+    })
+
+    blink_ai.setup({
+      provider = "test_paired",
+      debounce_ms = 0,
+      stats = { enabled = true },
+      providers = {
+        test_paired = { model = "test-model" },
+      },
+    })
+
+    local source = blink_ai.new({}, { timeout_ms = 1000 })
+    local bufnr = make_buffer({ "if condition" })
+    local calls = {}
+
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 12 },
+      keyword = "condition",
+    }, function(result)
+      table.insert(calls, result)
+    end)
+
+    assert.truthy(vim.wait(200, function()
+      return #calls >= 2
+    end))
+
+    local last = calls[#calls]
+    assert.are.equal(2, #last.items)
+    assert.are.equal("if condition then", last.items[1].textEdit.newText)
+    assert.truthy(last.items[2].textEdit.newText:find("\n", 1, true))
+  end)
+
   it("cancels in-flight requests when superseded", function()
     local started = 0
     local cancel_count = 0

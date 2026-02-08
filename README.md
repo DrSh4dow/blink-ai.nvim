@@ -68,7 +68,8 @@ require("blink-ai").setup({
   },
   debounce_ms = 300,
   max_tokens = 256,
-  n_completions = 3,
+  n_completions = 2,
+  suggestion_mode = "paired", -- paired or raw
   context = {
     before_cursor_lines = 50,
     after_cursor_lines = 20,
@@ -142,6 +143,13 @@ The plugin uses its own prefixed environment variables to avoid consuming global
 - `BLINK_FIM_API_KEY`
 
 Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignored by default.
+
+## Suggestion Shaping
+
+- `paired` (default): emits at most 2 items per request:
+  - item 1: compact single-line suggestion
+  - item 2: full-form suggestion (multiline when available)
+- `raw`: returns provider candidates as-is.
 
 ## Providers
 

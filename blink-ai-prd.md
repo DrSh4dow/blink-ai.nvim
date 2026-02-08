@@ -181,7 +181,10 @@ require('blink-ai').setup({
   max_tokens = 256,
 
   -- Number of completion candidates to request (if supported)
-  n_completions = 3,
+  n_completions = 2,
+
+  -- Suggestion shaping mode: paired (default) or raw
+  suggestion_mode = 'paired',
 
   -- Context window: lines before/after cursor to include
   context = {
