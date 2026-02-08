@@ -5,15 +5,17 @@ local state = require("blink-ai.state")
 local M = {}
 
 local function status_message(cfg)
-  local provider = cfg.provider
-  local model = (cfg.providers[provider] or {}).model or ""
+  local provider = state.stats.last_provider or cfg.provider
+  local model = state.stats.last_model or (cfg.providers[provider] or {}).model or ""
   local stats = state.stats
   local lines = {
     "blink-ai status:",
     "  enabled: " .. tostring(state.is_enabled()),
     "  provider: " .. tostring(provider),
     "  model: " .. (model ~= "" and model or "(none)"),
-    "  requests: " .. stats.requests .. " (ok " .. stats.successes .. ", errors " .. stats.errors .. ")",
+    "  metrics_enabled: " .. tostring(stats.enabled),
+    "  in_flight: " .. tostring(stats.in_flight),
+    "  requests: " .. stats.requests .. " (ok " .. stats.successes .. ", errors " .. stats.errors .. ", cancels " .. stats.cancels .. ")",
   }
   if stats.last_duration_ms then
     table.insert(lines, "  last_duration_ms: " .. stats.last_duration_ms)
@@ -79,11 +81,22 @@ local function handle_command(args)
   end
 
   if sub == "clear" then
-    if state.cancel() then
+    if state.cancel("command_clear") then
       notify_info("blink-ai request cancelled")
     else
       notify_info("blink-ai no active request")
     end
+    return
+  end
+
+  if sub == "stats" then
+    local action = args.fargs[2] or "status"
+    if action == "reset" then
+      state.reset_stats()
+      notify_info("blink-ai stats reset")
+      return
+    end
+    notify_info(status_message(cfg))
     return
   end
 
@@ -93,7 +106,7 @@ end
 local function complete_command(arg_lead, cmd_line)
   local parts = vim.split(cmd_line, "%s+", { trimempty = true })
   if #parts <= 2 then
-    local items = { "status", "toggle", "provider", "model", "clear" }
+    local items = { "status", "toggle", "provider", "model", "clear", "stats" }
     return vim.tbl_filter(function(item)
       return item:find("^" .. vim.pesc(arg_lead)) ~= nil
     end, items)
@@ -105,6 +118,11 @@ local function complete_command(arg_lead, cmd_line)
     return vim.tbl_filter(function(item)
       return item:find("^" .. vim.pesc(arg_lead)) ~= nil
     end, names)
+  end
+  if sub == "stats" then
+    return vim.tbl_filter(function(item)
+      return item:find("^" .. vim.pesc(arg_lead)) ~= nil
+    end, { "status", "reset" })
   end
   return {}
 end

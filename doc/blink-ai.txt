@@ -35,18 +35,22 @@ Example source wiring for blink.cmp:
 ==============================================================================
 CONFIG                                                          *blink-ai-config*
 
-provider               Active provider name.
-debounce_ms            Debounce delay before requests.
-max_tokens             Max tokens requested per completion.
-n_completions          Number of completion candidates.
-context.before_cursor_lines  Lines before cursor to include.
-context.after_cursor_lines   Lines after cursor to include.
-filetypes              Allowlist of filetypes (empty = all).
-filetypes_exclude      Blocklist of filetypes.
-notify_on_error        Notify via vim.notify on errors.
-providers              Provider-specific configuration.
-system_prompt          String or function(ctx) -> string override.
-transform_items        fun(items) -> items hook.
+provider                    Active provider name.
+provider_overrides          Per-filetype provider/model overrides.
+debounce_ms                 Debounce delay before requests.
+max_tokens                  Max tokens requested per completion.
+n_completions               Number of completion candidates.
+context.before_cursor_lines Lines before cursor to include.
+context.after_cursor_lines  Lines after cursor to include.
+context.enable_treesitter   Include syntax node metadata when available.
+context.user_context        fun(ctx) -> string|nil extra context hook.
+stats.enabled               Track local request metrics for status command.
+filetypes                   Allowlist of filetypes (empty = all).
+filetypes_exclude           Blocklist of filetypes.
+notify_on_error             Notify via vim.notify on errors.
+providers                   Provider-specific configuration.
+system_prompt               String or function(ctx) -> string override.
+transform_items             fun(items) -> items hook.
 
 Note: timeout_ms is configured in blink.cmp under
 sources.providers.ai.timeout_ms.
@@ -54,27 +58,46 @@ sources.providers.ai.timeout_ms.
 ==============================================================================
 PROVIDERS                                                     *blink-ai-providers*
 
-openai                 Streaming chat-completions provider.
-anthropic              Scaffold only.
-ollama                 Scaffold only.
-openai_compatible      Scaffold only.
-fim                    Scaffold only.
+openai
+  Chat completions over SSE.
+  Defaults to OPENAI_API_KEY.
+
+anthropic
+  Messages API over SSE.
+  Defaults to ANTHROPIC_API_KEY.
+
+ollama
+  Supports /v1/chat/completions, /api/chat, and /api/generate.
+  No auth required by default.
+
+openai_compatible
+  Generic OpenAI-style endpoint.
+  Defaults to OPENAI_COMPATIBLE_API_KEY, then OPENAI_API_KEY.
+
+fim
+  Generic fill-in-the-middle endpoint.
+  Uses configurable fim_tokens and defaults to FIM_API_KEY.
 
 ==============================================================================
 COMMANDS                                                     *blink-ai-commands*
 
-:BlinkAI status        Show provider, model, and request stats.
-:BlinkAI toggle        Enable/disable the source globally.
-:BlinkAI provider {name}  Switch the active provider.
-:BlinkAI model {name}     Switch the model for the active provider.
-:BlinkAI clear         Cancel any in-flight request.
+:BlinkAI status              Show provider, model, and request status.
+:BlinkAI toggle              Enable/disable the source globally.
+:BlinkAI provider {name}     Switch the active provider.
+:BlinkAI model {name}        Switch the model for the active provider.
+:BlinkAI clear               Cancel any in-flight request.
+:BlinkAI stats status        Show metrics.
+:BlinkAI stats reset         Reset metrics and last error.
 
 ==============================================================================
 TROUBLESHOOTING                                           *blink-ai-troubleshoot*
 
-- Missing keys notify once. Use OPENAI_API_KEY or provider config.
+- Missing keys notify once. Set provider-specific env vars or config values.
 - Ensure curl is available and Neovim is 0.10+.
-- Check :BlinkAI status for active provider/model and errors.
+- Check :BlinkAI status for active provider, model, and last error.
+- Verify your blink.cmp source uses module = "blink-ai".
+- Increase debounce_ms if requests fire too often.
+- Increase sources.providers.ai.timeout_ms if requests time out.
 
 ==============================================================================
 LICENSE                                                         *blink-ai-license*

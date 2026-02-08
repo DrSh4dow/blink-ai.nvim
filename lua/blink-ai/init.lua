@@ -12,8 +12,9 @@ local Source = {}
 Source.__index = Source
 
 function M.setup(opts)
-  config.setup(opts)
-  providers.setup(config.get())
+  local cfg = config.setup(opts)
+  state.set_stats_enabled(cfg.stats and cfg.stats.enabled)
+  providers.setup(cfg)
   commands.setup()
 end
 
@@ -42,12 +43,13 @@ function Source:enabled()
     return false
   end
   local cfg = config.get()
-  local provider = providers.get(cfg.provider)
+  local ft = vim.bo.filetype
+  local provider_name = config.resolve_provider(ft)
+  local provider = providers.get(provider_name)
   if not provider then
     return false
   end
 
-  local ft = vim.bo.filetype
   if cfg.filetypes and #cfg.filetypes > 0 then
     if not vim.tbl_contains(cfg.filetypes, ft) then
       return false
@@ -65,7 +67,7 @@ end
 
 function Source:get_completions(ctx, callback)
   if self._cancel then
-    self._cancel()
+    state.cancel("superseded")
     self._cancel = nil
   end
   self._stream_output = nil
@@ -73,7 +75,7 @@ function Source:get_completions(ctx, callback)
 
   return function()
     if self._cancel then
-      self._cancel()
+      state.cancel("source_cancel")
       self._cancel = nil
     end
     state.clear_cancel()
@@ -83,21 +85,26 @@ end
 
 function Source:_do_complete(ctx, callback)
   local cfg = config.get()
-  local provider = providers.get(cfg.provider)
+  state.set_stats_enabled(cfg.stats and cfg.stats.enabled)
+  local prompt_ctx = context.get(ctx, cfg)
+  local provider_name, provider_options = config.resolve_provider(prompt_ctx.filetype)
+  local provider = providers.get(provider_name)
   if not provider then
     util.notify_once(
-      "provider_missing:" .. tostring(cfg.provider),
-      "blink-ai: provider '" .. tostring(cfg.provider) .. "' is not registered"
+      "provider_missing:" .. tostring(provider_name),
+      "blink-ai: provider '" .. tostring(provider_name) .. "' is not registered"
     )
     callback({ items = {}, is_incomplete_forward = false })
     return
   end
 
-  local prompt_ctx = context.get(ctx, cfg)
   local runtime_cfg = vim.tbl_deep_extend("force", {}, cfg, {
+    provider = provider_name,
+    effective_provider = provider_name,
+    effective_provider_config = provider_options,
     timeout_ms = self.provider_config.timeout_ms or self.opts.timeout_ms,
   })
-  local started_at = state.record_request()
+  local started_at = state.record_request(provider_name, provider_options.model)
 
   local finished = false
 
@@ -141,6 +148,9 @@ function Source:_do_complete(ctx, callback)
   end
 
   self._cancel = provider.complete(prompt_ctx, on_chunk, on_done, on_error, runtime_cfg) or nil
+  if type(self._cancel) ~= "function" then
+    self._cancel = nil
+  end
   state.set_cancel(self._cancel)
 end
 

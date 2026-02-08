@@ -16,7 +16,9 @@ function M.get(name)
 end
 
 function M.list()
-  return vim.tbl_keys(registry)
+  local names = vim.tbl_keys(registry)
+  table.sort(names)
+  return names
 end
 
 function M.setup(cfg)

@@ -1,7 +1,6 @@
 # blink-ai.nvim
 
-blink-ai.nvim is a Neovim plugin that injects AI completions into the
-blink.cmp completion menu.
+`blink-ai.nvim` is a Neovim plugin that injects AI completions into the `blink.cmp` menu.
 
 ## Requirements
 
@@ -51,53 +50,112 @@ blink.cmp completion menu.
 ```lua
 require("blink-ai").setup({
   provider = "openai",
+  provider_overrides = {
+    lua = { model = "gpt-4o-mini" },
+    markdown = { provider = "ollama", model = "qwen2.5-coder:7b" },
+  },
   debounce_ms = 300,
   max_tokens = 256,
   n_completions = 3,
   context = {
     before_cursor_lines = 50,
     after_cursor_lines = 20,
+    enable_treesitter = false,
+    user_context = nil, -- fun(ctx) -> string|nil
+  },
+  stats = {
+    enabled = false, -- collect request counters for :BlinkAI status
   },
   filetypes = {},
   filetypes_exclude = { "TelescopePrompt", "NvimTree", "neo-tree", "oil" },
   notify_on_error = true,
   providers = {
     openai = {
-      api_key = nil,
+      api_key = nil, -- defaults to $OPENAI_API_KEY
       model = "gpt-4o-mini",
       endpoint = "https://api.openai.com/v1/chat/completions",
       temperature = 0.1,
+      headers = {},
+      extra_body = {},
+    },
+    anthropic = {
+      api_key = nil, -- defaults to $ANTHROPIC_API_KEY
+      model = "claude-sonnet-4-20250514",
+      endpoint = "https://api.anthropic.com/v1/messages",
+      temperature = 0.1,
+      headers = {},
+      extra_body = {},
+    },
+    ollama = {
+      model = "qwen2.5-coder:7b",
+      endpoint = "http://localhost:11434/v1/chat/completions",
+      stream_mode = "jsonl", -- jsonl or sse
+      headers = {},
+      extra_body = {},
+    },
+    openai_compatible = {
+      api_key = nil, -- defaults to $OPENAI_COMPATIBLE_API_KEY or $OPENAI_API_KEY
+      model = "",
+      endpoint = "",
+      temperature = 0.1,
+      headers = {},
+      extra_body = {},
+    },
+    fim = {
+      api_key = nil, -- defaults to $FIM_API_KEY
+      model = "",
+      endpoint = "",
+      fim_tokens = {
+        prefix = "<prefix>",
+        suffix = "<suffix>",
+        middle = "<middle>",
+      },
+      stream_mode = "jsonl", -- jsonl or sse
+      headers = {},
       extra_body = {},
     },
   },
-  system_prompt = nil,
-  transform_items = nil,
+  system_prompt = nil, -- string or fun(ctx) -> string
+  transform_items = nil, -- fun(items) -> items
 })
 ```
 
-OpenAI credentials are read from `OPENAI_API_KEY` unless explicitly set in
-`providers.openai.api_key`.
-
 ## Providers
 
-- `openai` is implemented with streaming.
-- `anthropic`, `ollama`, `openai_compatible`, and `fim` are scaffolded but not
-  implemented yet.
+- `openai`: chat completions, streaming SSE.
+- `anthropic`: messages API, streaming SSE.
+- `ollama`: local inference (`/v1/chat/completions`, `/api/chat`, or `/api/generate`).
+- `openai_compatible`: generic OpenAI-style endpoints.
+- `fim`: generic FIM-style endpoints with configurable FIM tokens.
 
 ## Commands
 
-- `:BlinkAI status` shows the active provider, model, and request stats.
-- `:BlinkAI toggle` enables or disables the source globally.
-- `:BlinkAI provider <name>` switches the active provider at runtime.
-- `:BlinkAI model <name>` switches the model for the active provider.
-- `:BlinkAI clear` cancels any in-flight request.
+- `:BlinkAI status` show provider/model and runtime status.
+- `:BlinkAI toggle` enable/disable the source globally.
+- `:BlinkAI provider <name>` switch active provider.
+- `:BlinkAI model <name>` switch model for the active provider.
+- `:BlinkAI clear` cancel in-flight request.
+- `:BlinkAI stats status` show metrics (same as status).
+- `:BlinkAI stats reset` reset counters and last error.
+
+## Testing and Tooling
+
+- Format: `make format`
+- Lint: `make lint`
+- Tests: `make test`
 
 ## Troubleshooting
 
-- If you see no AI items, confirm `:BlinkAI status` and verify the provider.
-- Missing keys will notify once; set `OPENAI_API_KEY` or `providers.openai.api_key`.
-- Ensure `curl` is on your PATH and Neovim is 0.10+.
-- `timeout_ms` is controlled by blink.cmp under `sources.providers.ai.timeout_ms`.
+- Missing API key:
+  - OpenAI: `OPENAI_API_KEY`
+  - Anthropic: `ANTHROPIC_API_KEY`
+  - OpenAI-compatible: `OPENAI_COMPATIBLE_API_KEY` (or `OPENAI_API_KEY`)
+  - FIM: `FIM_API_KEY`
+- Check `:BlinkAI status` for last error and in-flight state.
+- Ensure `curl` is available and endpoint URLs are reachable.
+- If completions do not appear, verify blink source config includes `module = "blink-ai"`.
+- If requests are too frequent, increase `debounce_ms`.
+- If completions time out, increase `sources.providers.ai.timeout_ms` in blink.cmp config.
 
 ## License
 

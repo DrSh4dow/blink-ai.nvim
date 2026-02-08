@@ -1,5 +1,27 @@
 local M = {}
 
+local function get_treesitter_scope(bufnr, line, col)
+  if not vim.treesitter or not vim.treesitter.get_node then
+    return nil
+  end
+
+  local ok, node = pcall(vim.treesitter.get_node, { bufnr = bufnr, pos = { line - 1, col } })
+  if not ok or not node then
+    return nil
+  end
+
+  local scope = {
+    node_type = node:type(),
+  }
+
+  local parent = node:parent()
+  if parent then
+    scope.parent_type = parent:type()
+  end
+
+  return scope
+end
+
 function M.get(ctx, cfg)
   local config = cfg or require("blink-ai.config").get()
   local bufnr = (ctx and ctx.bufnr) or vim.api.nvim_get_current_buf()
@@ -43,7 +65,7 @@ function M.get(ctx, cfg)
     filename = vim.fn.fnamemodify(filename, ":t")
   end
 
-  return {
+  local result = {
     bufnr = bufnr,
     cursor = cursor,
     filetype = vim.bo[bufnr].filetype,
@@ -51,6 +73,19 @@ function M.get(ctx, cfg)
     context_before_cursor = before,
     context_after_cursor = after,
   }
+
+  if config.context.enable_treesitter then
+    result.treesitter = get_treesitter_scope(bufnr, line, col)
+  end
+
+  if type(config.context.user_context) == "function" then
+    local ok, user_context = pcall(config.context.user_context, result)
+    if ok and type(user_context) == "string" and user_context ~= "" then
+      result.user_context = user_context
+    end
+  end
+
+  return result
 end
 
 return M

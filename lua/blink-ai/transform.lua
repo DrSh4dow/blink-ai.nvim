@@ -104,6 +104,7 @@ end
 function M.items_from_output(output, ctx, cfg)
   local entries = normalize_output(output)
   local items = {}
+  local provider = cfg and (cfg.effective_provider or cfg.provider) or "unknown"
 
   for index, text in ipairs(entries) do
     if text ~= "" then
@@ -121,8 +122,12 @@ function M.items_from_output(output, ctx, cfg)
           value = text,
         },
         filterText = "",
-        sortText = string.format("ai%02d", index),
-        data = { source = "blink-ai" },
+        sortText = string.format("0_ai_%03d", index),
+        data = {
+          source = "blink-ai",
+          provider = provider,
+          candidate = index,
+        },
       }
       table.insert(items, item)
     end

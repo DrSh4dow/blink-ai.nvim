@@ -10,3 +10,5 @@ doc/tags
 *.out
 /.luarc.json
 /.cache
+/.tests
+/.nvimlog

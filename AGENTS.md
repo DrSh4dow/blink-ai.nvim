@@ -17,25 +17,27 @@
 - When in doubt, follow existing patterns in the codebase once code exists.
 
 ## Build / Lint / Test
-Current status: no build/lint/test tooling is present in this repo yet.
+Current status: tooling is present in this repo.
 
-Discovery checklist (when code is added):
-- `Makefile`, `justfile`, `package.json`, `stylua.toml`, `.luacheckrc`, `.editorconfig`.
-- `tests/`, `spec/`, `lua/tests/`, or `doc/` for usage or test harnesses.
+Available tooling:
+- `Makefile`
+- `stylua.toml`
+- `.luacheckrc`
+- `tests/` (plenary.busted)
+- `.github/workflows/ci.yml`
 
 Preferred modern defaults (add tooling if missing):
 - Formatter: `stylua`.
 - Linter: `luacheck` (configurable to allow Neovim globals).
 - Tests: `plenary.busted` or `mini.test` (both run headless in Neovim).
 
-Suggested command templates (update once actual scripts exist):
-- Format all: `stylua lua doc`.
-- Lint all: `luacheck lua`.
-- Run tests (plenary): `nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests {minimal_init = 'tests/minimal_init.lua'}" -c "qa"`.
-- Run tests (mini.test): `nvim --headless -u tests/minimal_init.lua -c "lua require('mini.test').run()" -c "qa"`.
+Exact commands:
+- Format all: `make format` or `stylua lua doc tests`.
+- Lint all: `make lint` or `luacheck lua tests`.
+- Run tests (plenary): `make test` or `nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests { minimal_init = 'tests/minimal_init.lua' }" -c "qa"`.
 
 Single-test guidance (only if configured):
-- Plenary single file: `nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedFile tests/foo_spec.lua" -c "qa"`.
+- Plenary single file: `nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedFile tests/unit/request_spec.lua" -c "qa"`.
 - Plenary filter: add `--filter` in the test runner invocation.
 - mini.test single file: `nvim --headless -u tests/minimal_init.lua -c "lua require('mini.test').run({dir = 'tests', filter = 'foo'})" -c "qa"`.
 
