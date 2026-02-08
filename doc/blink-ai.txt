@@ -1,0 +1,63 @@
+*blink-ai.txt*  AI completions for blink.cmp
+
+==============================================================================
+INTRO                                                                    *blink-ai*
+
+blink-ai.nvim injects AI completions into the blink.cmp completion menu.
+
+Requirements:
+- Neovim 0.10+
+- curl
+- saghen/blink.cmp
+
+==============================================================================
+SETUP                                                             *blink-ai-setup*
+
+Use your plugin manager to load blink-ai.nvim, then call:
+
+  lua require("blink-ai").setup({ ... })
+
+Example source wiring for blink.cmp:
+
+  sources = {
+    default = { "lsp", "path", "snippets", "buffer", "ai" },
+    providers = {
+      ai = {
+        name = "AI",
+        module = "blink-ai",
+        async = true,
+        timeout_ms = 5000,
+        score_offset = 10,
+      },
+    },
+  }
+
+==============================================================================
+CONFIG                                                          *blink-ai-config*
+
+provider               Active provider name.
+debounce_ms            Debounce delay before requests.
+max_tokens             Max tokens requested per completion.
+n_completions          Number of completion candidates.
+context.before_cursor_lines  Lines before cursor to include.
+context.after_cursor_lines   Lines after cursor to include.
+filetypes              Allowlist of filetypes (empty = all).
+filetypes_exclude      Blocklist of filetypes.
+notify_on_error        Notify via vim.notify on errors.
+providers              Provider-specific configuration.
+system_prompt          String or function(ctx) -> string override.
+transform_items        fun(items) -> items hook.
+
+==============================================================================
+PROVIDERS                                                     *blink-ai-providers*
+
+openai                 Streaming chat-completions provider.
+anthropic              Scaffold only.
+ollama                 Scaffold only.
+openai_compatible      Scaffold only.
+fim                    Scaffold only.
+
+==============================================================================
+LICENSE                                                         *blink-ai-license*
+
+MIT

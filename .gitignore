@@ -1,0 +1,12 @@
+.DS_Store
+doc/tags
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+*.rej
+*.log
+*.out
+/.luarc.json
+/.cache
