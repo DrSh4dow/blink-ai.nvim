@@ -12,3 +12,5 @@ doc/tags
 /.cache
 /.tests
 /.nvimlog
+/.env
+/.env.*
