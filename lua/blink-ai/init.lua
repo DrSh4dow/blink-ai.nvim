@@ -106,6 +106,7 @@ function Source:_do_complete(ctx, callback)
     effective_provider_config = provider_options,
     timeout_ms = self.provider_config.timeout_ms or self.opts.timeout_ms,
   })
+  local completion_range = transform.lsp_range_from_ctx(ctx)
   local started_at = state.record_request(provider_name, provider_options.model)
 
   local finished = false
@@ -115,7 +116,8 @@ function Source:_do_complete(ctx, callback)
       return
     end
     self._stream_output = output
-    local items = transform.items_from_output(self._stream_output, ctx, runtime_cfg)
+    local items =
+      transform.items_from_output(self._stream_output, ctx, runtime_cfg, completion_range)
     callback({ items = items, is_incomplete_forward = true })
   end
 
@@ -127,7 +129,8 @@ function Source:_do_complete(ctx, callback)
     self._cancel = nil
     state.clear_cancel()
     state.record_success(started_at)
-    local items = transform.items_from_output(self._stream_output, ctx, runtime_cfg)
+    local items =
+      transform.items_from_output(self._stream_output, ctx, runtime_cfg, completion_range)
     callback({ items = items, is_incomplete_forward = false })
   end
 

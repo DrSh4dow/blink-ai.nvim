@@ -1,4 +1,5 @@
 local blink_ai = require("blink-ai")
+local transform = require("blink-ai.transform")
 
 local function make_buffer(lines)
   local bufnr = vim.api.nvim_create_buf(false, true)
@@ -218,5 +219,69 @@ describe("source integration", function()
     for _, text in ipairs(seen) do
       assert.are_not.equal("response-1", text)
     end
+  end)
+
+  it("precomputes completion range once for streaming callbacks", function()
+    blink_ai.register_provider("test_fixed_range", {
+      name = "test_fixed_range",
+      setup = function() end,
+      complete = function(_, on_chunk, on_done)
+        on_chunk({ "first" })
+        on_chunk({ "second" })
+        on_done()
+        return function() end
+      end,
+    })
+
+    blink_ai.setup({
+      provider = "test_fixed_range",
+      debounce_ms = 0,
+      stats = { enabled = true },
+      providers = {
+        test_fixed_range = { model = "test-model" },
+      },
+    })
+
+    local original_range = transform.lsp_range_from_ctx
+    local original_items = transform.items_from_output
+    local range_calls = 0
+    local missing_fixed_range = false
+
+    transform.lsp_range_from_ctx = function(ctx)
+      range_calls = range_calls + 1
+      return original_range(ctx)
+    end
+    transform.items_from_output = function(output, ctx, cfg, fixed_range)
+      if fixed_range == nil then
+        missing_fixed_range = true
+      end
+      return original_items(output, ctx, cfg, fixed_range)
+    end
+
+    local ok, err = pcall(function()
+      local source = blink_ai.new({}, { timeout_ms = 1000 })
+      local bufnr = make_buffer({ "prin" })
+      local calls = {}
+
+      source:get_completions({
+        bufnr = bufnr,
+        cursor = { 1, 4 },
+        line_before_cursor = "prin",
+        line_after_cursor = "",
+      }, function(result)
+        table.insert(calls, result)
+      end)
+
+      assert.truthy(vim.wait(200, function()
+        return #calls >= 3
+      end))
+      assert.are.equal(1, range_calls)
+      assert.is_false(missing_fixed_range)
+    end)
+
+    transform.lsp_range_from_ctx = original_range
+    transform.items_from_output = original_items
+
+    assert.is_true(ok, tostring(err))
   end)
 end)

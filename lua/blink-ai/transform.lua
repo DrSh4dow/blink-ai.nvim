@@ -77,16 +77,19 @@ local function keyword_start_from_ctx(ctx, line, col)
   if line_text == "" then
     return col
   end
-  local before = line_text:sub(1, col)
-  local match = vim.fn.matchstrpos(before, "\\k*$")
-  local start_col = match[2]
-  if type(start_col) ~= "number" or start_col < 0 then
-    return col
+  local max_col = math.min(col, #line_text)
+  local start_col = max_col
+  while start_col > 0 do
+    local char = line_text:sub(start_col, start_col)
+    if not char:match("[%w_]") then
+      break
+    end
+    start_col = start_col - 1
   end
   return start_col
 end
 
-local function lsp_range_from_ctx(ctx)
+function M.lsp_range_from_ctx(ctx)
   if ctx and ctx.text_edit and ctx.text_edit.range then
     return ctx.text_edit.range
   end
@@ -105,10 +108,24 @@ local function lsp_range_from_ctx(ctx)
   }
 end
 
-function M.items_from_output(output, ctx, cfg)
+local function clone_range(range)
+  return {
+    start = {
+      line = range.start.line,
+      character = range.start.character,
+    },
+    ["end"] = {
+      line = range["end"].line,
+      character = range["end"].character,
+    },
+  }
+end
+
+function M.items_from_output(output, ctx, cfg, fixed_range)
   local entries = normalize_output(output)
   local items = {}
   local provider = cfg and (cfg.effective_provider or cfg.provider) or "unknown"
+  local edit_range = fixed_range or M.lsp_range_from_ctx(ctx)
 
   for index, text in ipairs(entries) do
     if text ~= "" then
@@ -119,7 +136,7 @@ function M.items_from_output(output, ctx, cfg)
         insertTextFormat = vim.lsp.protocol.InsertTextFormat.PlainText,
         textEdit = {
           newText = text,
-          range = lsp_range_from_ctx(ctx),
+          range = clone_range(edit_range),
         },
         documentation = {
           kind = "plaintext",
