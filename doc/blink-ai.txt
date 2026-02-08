@@ -45,7 +45,7 @@ provider_overrides          Per-filetype provider/model overrides.
 debounce_ms                 Debounce delay before requests.
 max_tokens                  Max tokens requested per completion.
 n_completions               Number of completion candidates.
-suggestion_mode             "paired" (default) or "raw" output shaping.
+suggestion_mode             "raw" (default) or "paired" output shaping.
 context.before_cursor_lines Lines before cursor to include.
 context.after_cursor_lines  Lines after cursor to include.
 context.enable_treesitter   Include syntax node metadata when available.
@@ -59,8 +59,8 @@ system_prompt               String or function(ctx) -> string override.
 transform_items             fun(items) -> items hook.
 
 Suggestion modes:
-- paired: at most two items (single-line + full-form/multiline).
 - raw: return provider candidates unchanged.
+- paired: at most two items (single-line + full-form/multiline).
 
 Note: timeout_ms is configured in blink.cmp under
 sources.providers.ai.timeout_ms.
@@ -69,7 +69,7 @@ sources.providers.ai.timeout_ms.
 PROVIDERS                                                     *blink-ai-providers*
 
 openai
-  Chat completions over SSE.
+  Responses API over SSE.
   Defaults to BLINK_OPENAI_API_KEY.
 
 anthropic
@@ -81,7 +81,7 @@ ollama
   No auth required by default.
 
 openai_compatible
-  Generic OpenAI-style endpoint.
+  Generic OpenAI-style chat endpoint.
   Defaults to BLINK_OPENAI_COMPATIBLE_API_KEY.
 
 fim
@@ -125,6 +125,7 @@ TROUBLESHOOTING                                           *blink-ai-troubleshoot
 - Verify your blink.cmp source uses module = "blink-ai".
 - Increase debounce_ms if requests fire too often.
 - Increase sources.providers.ai.timeout_ms if requests time out.
+- For OpenAI models like gpt-5.2-codex, use the /v1/responses endpoint.
 - OpenAI-compatible/FIM endpoints may require custom extra_body fields.
 
 ==============================================================================

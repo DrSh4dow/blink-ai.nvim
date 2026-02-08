@@ -67,6 +67,7 @@ describe("source integration", function()
     blink_ai.setup({
       provider = "test_paired",
       debounce_ms = 0,
+      suggestion_mode = "paired",
       stats = { enabled = true },
       providers = {
         test_paired = { model = "test-model" },

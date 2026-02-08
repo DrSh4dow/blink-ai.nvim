@@ -3,7 +3,7 @@ local request = require("blink-ai.request")
 
 local M = {
   name = "openai",
-  supports_n = true,
+  supports_n = false,
   stream_mode = "sse",
 }
 
@@ -29,40 +29,114 @@ local function resolve_api_key(p_opts)
   return key
 end
 
-local function append_content(buffers, choice)
-  local content = nil
-  if type(choice.delta) == "table" then
-    content = choice.delta.content
-  end
-  if (not content or content == "") and type(choice.message) == "table" then
-    content = choice.message.content
-  end
-  if (not content or content == "") and type(choice.text) == "string" then
-    content = choice.text
-  end
-
-  local text = nil
-  if type(content) == "string" then
-    text = content
-  elseif type(content) == "table" then
-    local parts = {}
-    for _, part in ipairs(content) do
-      if type(part) == "string" then
-        table.insert(parts, part)
-      elseif type(part) == "table" and type(part.text) == "string" then
-        table.insert(parts, part.text)
-      end
-    end
-    text = table.concat(parts, "")
-  end
-
-  if not text or text == "" then
+local function append_text(buffers, text)
+  if type(text) ~= "string" or text == "" then
     return false
   end
-
-  local idx = (choice.index or 0) + 1
-  buffers[idx] = (buffers[idx] or "") .. text
+  buffers[1] = (buffers[1] or "") .. text
   return true
+end
+
+local function collect_output_text(output)
+  if type(output) ~= "table" then
+    return nil
+  end
+
+  local parts = {}
+  for _, item in ipairs(output) do
+    if type(item) == "table" then
+      if type(item.output_text) == "string" and item.output_text ~= "" then
+        table.insert(parts, item.output_text)
+      end
+      if type(item.text) == "string" and item.text ~= "" then
+        table.insert(parts, item.text)
+      end
+      if type(item.content) == "table" then
+        for _, content_part in ipairs(item.content) do
+          if type(content_part) == "table" then
+            if type(content_part.text) == "string" and content_part.text ~= "" then
+              table.insert(parts, content_part.text)
+            elseif
+              type(content_part.output_text) == "string" and content_part.output_text ~= ""
+            then
+              table.insert(parts, content_part.output_text)
+            end
+          end
+        end
+      end
+    end
+  end
+
+  if #parts == 0 then
+    return nil
+  end
+  return table.concat(parts, "")
+end
+
+local function response_delta_text(decoded)
+  if type(decoded) ~= "table" then
+    return nil
+  end
+  local event_type = type(decoded.type) == "string" and decoded.type or ""
+
+  if event_type == "response.output_text.delta" then
+    if type(decoded.delta) == "string" then
+      return decoded.delta
+    end
+    if type(decoded.delta) == "table" and type(decoded.delta.text) == "string" then
+      return decoded.delta.text
+    end
+  end
+
+  if event_type == "response.content_part.added" then
+    local part = decoded.part or decoded.content_part
+    if type(part) == "table" then
+      if type(part.text) == "string" then
+        return part.text
+      end
+      if type(part.output_text) == "string" then
+        return part.output_text
+      end
+    end
+  end
+
+  if event_type:find("delta", 1, true) then
+    if type(decoded.delta) == "string" then
+      return decoded.delta
+    end
+    if type(decoded.delta) == "table" and type(decoded.delta.text) == "string" then
+      return decoded.delta.text
+    end
+  end
+
+  return nil
+end
+
+local function response_final_text(decoded)
+  if type(decoded) ~= "table" then
+    return nil
+  end
+  if type(decoded.output_text) == "string" and decoded.output_text ~= "" then
+    return decoded.output_text
+  end
+  if type(decoded.output) == "table" then
+    local text = collect_output_text(decoded.output)
+    if text and text ~= "" then
+      return text
+    end
+  end
+  if type(decoded.response) == "table" then
+    if type(decoded.response.output_text) == "string" and decoded.response.output_text ~= "" then
+      return decoded.response.output_text
+    end
+    if type(decoded.response.output) == "table" then
+      local text = collect_output_text(decoded.response.output)
+      if text and text ~= "" then
+        return text
+      end
+    end
+  end
+  return nil
 end
 
 function M.complete(ctx, on_chunk, on_done, on_error, config)
@@ -83,11 +157,11 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
 
   local body = {
     model = p_opts.model or "gpt-4o-mini",
-    messages = prompt.chat_messages(ctx, config),
+    instructions = prompt.system_prompt(ctx, config),
+    input = prompt.response_input(ctx),
     stream = true,
-    max_tokens = config.max_tokens,
+    max_output_tokens = config.max_tokens,
     temperature = p_opts.temperature or 0.1,
-    n = math.max(1, config.n_completions or 1),
   }
   if p_opts.extra_body and next(p_opts.extra_body) ~= nil then
     body = vim.tbl_deep_extend("force", body, p_opts.extra_body)
@@ -99,6 +173,7 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
   }, p_opts.headers or {})
 
   local buffers = {}
+  local streamed_delta = false
   local function handle_data(data)
     local ok, decoded = pcall(vim.json.decode, data)
     if not ok or type(decoded) ~= "table" then
@@ -113,19 +188,42 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
       return
     end
 
-    local choices = decoded.choices or {}
-    local updated = false
-    for _, choice in ipairs(choices) do
-      updated = append_content(buffers, choice) or updated
+    if decoded.type == "response.error" or decoded.type == "error" then
+      local message = decoded.message
+      if type(message) ~= "string" or message == "" then
+        message = "OpenAI request failed"
+      end
+      if on_error then
+        on_error({ key = "openai:api_error", message = message })
+      end
+      return
     end
-    if updated and on_chunk then
-      on_chunk(buffers)
+
+    local delta_text = response_delta_text(decoded)
+    if append_text(buffers, delta_text) then
+      streamed_delta = true
+      if on_chunk then
+        on_chunk(buffers)
+      end
+      return
+    end
+
+    if not streamed_delta then
+      local final_text = response_final_text(decoded)
+      if type(final_text) == "string" and final_text ~= "" then
+        if buffers[1] ~= final_text then
+          buffers[1] = final_text
+          if on_chunk then
+            on_chunk(buffers)
+          end
+        end
+      end
     end
   end
 
   return request.stream({
     method = "POST",
-    url = p_opts.endpoint or "https://api.openai.com/v1/chat/completions",
+    url = p_opts.endpoint or "https://api.openai.com/v1/responses",
     headers = headers,
     body = vim.json.encode(body),
     on_chunk = handle_data,

@@ -28,8 +28,7 @@ function M.system_prompt(ctx, cfg)
   return default_system_prompt(ctx)
 end
 
-function M.chat_messages(ctx, cfg)
-  local system = M.system_prompt(ctx, cfg)
+local function user_prompt(ctx)
   local before = ctx.context_before_cursor or ""
   local after = ctx.context_after_cursor or ""
   local sections = {
@@ -41,11 +40,20 @@ function M.chat_messages(ctx, cfg)
   table.insert(sections, "Context before cursor:\n" .. before)
   table.insert(sections, "Context after cursor:\n" .. after)
   table.insert(sections, "Combined:\n" .. before .. "<cursor>" .. after)
-  local user = table.concat(sections, "\n\n")
+  return table.concat(sections, "\n\n")
+end
+
+function M.chat_messages(ctx, cfg)
+  local system = M.system_prompt(ctx, cfg)
+  local user = user_prompt(ctx)
   return {
     { role = "system", content = system },
     { role = "user", content = user },
   }
+end
+
+function M.response_input(ctx)
+  return user_prompt(ctx)
 end
 
 function M.anthropic_messages(ctx)

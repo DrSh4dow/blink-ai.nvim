@@ -26,20 +26,26 @@ local function base_ctx()
 end
 
 describe("providers", function()
-  it("openai maps streaming chunks into candidate buffers", function()
+  it("openai parses Responses API streaming chunks and request payload", function()
     with_provider("blink-ai.providers.openai", function(opts)
       assert.are.equal("POST", opts.method)
       assert.are.equal("sse", opts.stream_mode)
+      local decoded = vim.json.decode(opts.body)
+      assert.are.equal("gpt-test", decoded.model)
+      assert.are.equal(true, decoded.stream)
+      assert.are.equal(32, decoded.max_output_tokens)
+      assert.are.equal("string", type(decoded.instructions))
+      assert.are.equal("string", type(decoded.input))
+      assert.is_nil(decoded.messages)
+      assert.is_nil(decoded.max_tokens)
+      assert.is_nil(decoded.n)
       opts.on_chunk(vim.json.encode({
-        choices = {
-          { index = 0, delta = { content = "hel" } },
-        },
+        type = "response.output_text.delta",
+        delta = "hel",
       }))
       opts.on_chunk(vim.json.encode({
-        choices = {
-          { index = 0, delta = { content = "lo" } },
-          { index = 1, delta = { content = "world" } },
-        },
+        type = "response.output_text.delta",
+        delta = "lo",
       }))
       opts.on_done()
       return function() end
@@ -61,7 +67,7 @@ describe("providers", function()
         err = e
       end, {
         max_tokens = 32,
-        n_completions = 2,
+        n_completions = 1,
         timeout_ms = 5000,
         effective_provider = "openai",
         effective_provider_config = {
@@ -73,7 +79,82 @@ describe("providers", function()
 
       assert.is_nil(err)
       assert.are.equal(true, done)
-      assert.are.same({ "hello", "world" }, latest)
+      assert.are.same({ "hello" }, latest)
+    end)
+  end)
+
+  it("openai falls back to completed response output when no deltas stream", function()
+    with_provider("blink-ai.providers.openai", function(opts)
+      opts.on_chunk(vim.json.encode({
+        type = "response.completed",
+        response = {
+          output = {
+            {
+              type = "message",
+              content = {
+                { type = "output_text", text = "print(value)" },
+              },
+            },
+          },
+        },
+      }))
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        api_key = "test-openai-key",
+        model = "gpt-test",
+        endpoint = "https://example.invalid/openai",
+      })
+
+      local latest = {}
+      provider.complete(base_ctx(), function(chunk)
+        latest = vim.deepcopy(chunk)
+      end, function() end, function()
+        error("unexpected error callback")
+      end, {
+        max_tokens = 32,
+        timeout_ms = 5000,
+        effective_provider = "openai",
+        effective_provider_config = {
+          api_key = "test-openai-key",
+          model = "gpt-test",
+          endpoint = "https://example.invalid/openai",
+        },
+      })
+
+      assert.are.same({ "print(value)" }, latest)
+    end)
+  end)
+
+  it("openai propagates streamed API errors", function()
+    with_provider("blink-ai.providers.openai", function(opts)
+      opts.on_chunk(vim.json.encode({
+        type = "response.error",
+        message = "quota exceeded",
+      }))
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        api_key = "test-openai-key",
+        endpoint = "https://example.invalid/openai",
+      })
+
+      local err_message
+      provider.complete(base_ctx(), function() end, function() end, function(err)
+        err_message = err.message
+      end, {
+        max_tokens = 32,
+        timeout_ms = 5000,
+        effective_provider = "openai",
+        effective_provider_config = {
+          api_key = "test-openai-key",
+          endpoint = "https://example.invalid/openai",
+        },
+      })
+
+      assert.are.equal("quota exceeded", err_message)
     end)
   end)
 

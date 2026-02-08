@@ -32,6 +32,18 @@ describe("prompt builders", function()
     assert.truthy(messages[1].content:find("print(<cursor>)", 1, true))
   end)
 
+  it("builds responses input text", function()
+    local ctx = {
+      context_before_cursor = "foo = ",
+      context_after_cursor = "bar",
+      user_context = "prefer short completions",
+    }
+    local input = prompt.response_input(ctx)
+
+    assert.truthy(input:find("prefer short completions", 1, true))
+    assert.truthy(input:find("foo = <cursor>bar", 1, true))
+  end)
+
   it("builds fim prompt with tokens", function()
     local ctx = {
       context_before_cursor = "foo",
