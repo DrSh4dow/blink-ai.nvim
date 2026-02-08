@@ -10,6 +10,10 @@ Requirements:
 - curl
 - saghen/blink.cmp
 
+Compatibility:
+- Neovim 0.10+ (CI tested on stable and v0.10.4)
+- Providers: OpenAI, Anthropic, Ollama, OpenAI-compatible, FIM
+
 ==============================================================================
 SETUP                                                             *blink-ai-setup*
 
@@ -90,6 +94,22 @@ COMMANDS                                                     *blink-ai-commands*
 :BlinkAI stats reset         Reset metrics and last error.
 
 ==============================================================================
+QUALITY                                                       *blink-ai-quality*
+
+Local release-quality commands:
+- make format-check
+- make lint
+- make docs-check
+- make test
+- make test-all
+
+Release metadata files:
+- CHANGELOG.md
+- CONTRIBUTING.md
+- SECURITY.md
+- RELEASE_CHECKLIST.md
+
+==============================================================================
 TROUBLESHOOTING                                           *blink-ai-troubleshoot*
 
 - Missing keys notify once. Set provider-specific env vars or config values.
@@ -98,6 +118,7 @@ TROUBLESHOOTING                                           *blink-ai-troubleshoot
 - Verify your blink.cmp source uses module = "blink-ai".
 - Increase debounce_ms if requests fire too often.
 - Increase sources.providers.ai.timeout_ms if requests time out.
+- OpenAI-compatible/FIM endpoints may require custom extra_body fields.
 
 ==============================================================================
 LICENSE                                                         *blink-ai-license*

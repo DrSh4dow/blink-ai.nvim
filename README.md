@@ -8,6 +8,18 @@
 - `curl`
 - `saghen/blink.cmp`
 
+## Compatibility Matrix
+
+| Component | Supported | CI Tested |
+|---|---|---|
+| Neovim | 0.10+ | `stable`, `v0.10.4` |
+| blink.cmp | required | yes |
+| OpenAI | yes | parser/integration + optional smoke |
+| Anthropic | yes | parser/integration + optional smoke |
+| Ollama | yes | parser/integration |
+| OpenAI-compatible | yes | parser/integration |
+| FIM | yes | parser/integration |
+
 ## Install (lazy.nvim)
 
 ```lua
@@ -141,8 +153,19 @@ require("blink-ai").setup({
 ## Testing and Tooling
 
 - Format: `make format`
+- Format check: `make format-check`
 - Lint: `make lint`
+- Docs sync: `make docs-check`
 - Tests: `make test`
+- Full local quality gate: `make test-all`
+- Optional credential-backed smoke check: `make smoke`
+
+## Release Quality Process
+
+- Use `RELEASE_CHECKLIST.md` for final release gates.
+- Keep `CHANGELOG.md` updated for every release.
+- Follow contribution guidelines in `CONTRIBUTING.md`.
+- Security process and disclosure guidance are in `SECURITY.md`.
 
 ## Troubleshooting
 
@@ -156,6 +179,12 @@ require("blink-ai").setup({
 - If completions do not appear, verify blink source config includes `module = "blink-ai"`.
 - If requests are too frequent, increase `debounce_ms`.
 - If completions time out, increase `sources.providers.ai.timeout_ms` in blink.cmp config.
+
+## Known Limitations
+
+- Network/provider availability and account quotas can still cause transient failures.
+- Different OpenAI-compatible/FIM endpoints may require provider-specific body fields via `extra_body`.
+- Provider smoke checks require API credentials and are intended for manual or workflow-dispatch runs.
 
 ## License
 

@@ -25,6 +25,9 @@ Available tooling:
 - `.luacheckrc`
 - `tests/` (plenary.busted)
 - `.github/workflows/ci.yml`
+- `.github/workflows/provider-smoke.yml`
+- `scripts/check-doc-sync.sh`
+- `scripts/provider_smoke.lua`
 
 Preferred modern defaults (add tooling if missing):
 - Formatter: `stylua`.
@@ -32,9 +35,13 @@ Preferred modern defaults (add tooling if missing):
 - Tests: `plenary.busted` or `mini.test` (both run headless in Neovim).
 
 Exact commands:
-- Format all: `make format` or `stylua lua doc tests`.
-- Lint all: `make lint` or `luacheck lua tests`.
+- Format all: `make format` or `stylua lua doc tests scripts`.
+- Format check: `make format-check` or `stylua --check lua doc tests scripts`.
+- Lint all: `make lint` or `luacheck lua tests scripts`.
+- Docs sync check: `make docs-check` or `bash scripts/check-doc-sync.sh`.
 - Run tests (plenary): `make test` or `nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests { minimal_init = 'tests/minimal_init.lua' }" -c "qa"`.
+- Full local gate: `make test-all`.
+- Optional provider smoke (needs credentials): `make smoke` or `nvim --headless -u NONE -i NONE -c "luafile scripts/provider_smoke.lua" -c "qa"`.
 
 Single-test guidance (only if configured):
 - Plenary single file: `nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedFile tests/unit/request_spec.lua" -c "qa"`.
