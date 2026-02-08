@@ -3,10 +3,16 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   lint-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        neovim: [stable, v0.10.4]
     runs-on: ubuntu-latest
+    name: lint-test (nvim-${{ matrix.neovim }})
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -14,7 +20,7 @@ jobs:
       - name: Setup Neovim
         uses: rhysd/action-setup-vim@v1
         with:
-          neovim: stable
+          neovim: ${{ matrix.neovim }}
 
       - name: Setup Lua
         uses: leafo/gh-actions-lua@v11
@@ -39,10 +45,13 @@ jobs:
           git clone --depth=1 https://github.com/nvim-lua/plenary.nvim .tests/plenary.nvim
 
       - name: Check formatting
-        run: stylua --check lua doc tests
+        run: stylua --check lua doc tests scripts
 
       - name: Lint
-        run: luacheck lua tests
+        run: luacheck lua tests scripts
+
+      - name: Check docs sync
+        run: bash scripts/check-doc-sync.sh
 
       - name: Run tests
         run: nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests { minimal_init = 'tests/minimal_init.lua' }" -c "qa"
