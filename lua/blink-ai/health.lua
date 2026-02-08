@@ -51,10 +51,10 @@ function M.check()
   else
     warn("OpenAI endpoint is empty")
   end
-  if has_value(openai.api_key) or has_value(os.getenv("OPENAI_API_KEY")) then
+  if has_value(openai.api_key) or has_value(os.getenv("BLINK_OPENAI_API_KEY")) then
     ok("OpenAI key configured")
   else
-    warn("OpenAI key missing (providers.openai.api_key or OPENAI_API_KEY)")
+    warn("OpenAI key missing (providers.openai.api_key or BLINK_OPENAI_API_KEY)")
   end
 
   local anthropic = p.anthropic or {}
@@ -63,10 +63,10 @@ function M.check()
   else
     warn("Anthropic endpoint is empty")
   end
-  if has_value(anthropic.api_key) or has_value(os.getenv("ANTHROPIC_API_KEY")) then
+  if has_value(anthropic.api_key) or has_value(os.getenv("BLINK_ANTHROPIC_API_KEY")) then
     ok("Anthropic key configured")
   else
-    warn("Anthropic key missing (providers.anthropic.api_key or ANTHROPIC_API_KEY)")
+    warn("Anthropic key missing (providers.anthropic.api_key or BLINK_ANTHROPIC_API_KEY)")
   end
 
   local compat = p.openai_compatible or {}
@@ -75,12 +75,24 @@ function M.check()
   else
     warn("OpenAI-compatible endpoint is empty (set when using this provider)")
   end
+  if has_value(compat.api_key) or has_value(os.getenv("BLINK_OPENAI_COMPATIBLE_API_KEY")) then
+    ok("OpenAI-compatible key configured")
+  else
+    warn(
+      "OpenAI-compatible key missing (providers.openai_compatible.api_key or BLINK_OPENAI_COMPATIBLE_API_KEY)"
+    )
+  end
 
   local fim = p.fim or {}
   if has_value(fim.endpoint) then
     ok("FIM endpoint configured")
   else
     warn("FIM endpoint is empty (set when using this provider)")
+  end
+  if has_value(fim.api_key) or has_value(os.getenv("BLINK_FIM_API_KEY")) then
+    ok("FIM key configured")
+  else
+    warn("FIM key missing (providers.fim.api_key or BLINK_FIM_API_KEY)")
   end
 
   if

@@ -24,7 +24,7 @@ end
 local function resolve_api_key(p_opts)
   local key = p_opts.api_key
   if not key or key == "" then
-    key = os.getenv("ANTHROPIC_API_KEY")
+    key = os.getenv("BLINK_ANTHROPIC_API_KEY")
   end
   return key
 end
@@ -49,7 +49,7 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
     if on_error then
       on_error({
         key = "anthropic:api_key_missing",
-        message = "Anthropic API key is missing (set ANTHROPIC_API_KEY or providers.anthropic.api_key)",
+        message = "Anthropic API key is missing (set BLINK_ANTHROPIC_API_KEY or providers.anthropic.api_key)",
       })
     end
     if on_done then

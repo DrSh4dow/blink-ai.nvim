@@ -62,13 +62,13 @@ end
 
 local checks = {
   {
-    env = "OPENAI_API_KEY",
+    env = "BLINK_OPENAI_API_KEY",
     name = "openai",
     module = "blink-ai.providers.openai",
     opts = config.get().providers.openai,
   },
   {
-    env = "ANTHROPIC_API_KEY",
+    env = "BLINK_ANTHROPIC_API_KEY",
     name = "anthropic",
     module = "blink-ai.providers.anthropic",
     opts = config.get().providers.anthropic,

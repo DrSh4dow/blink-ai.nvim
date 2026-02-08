@@ -83,7 +83,7 @@ require("blink-ai").setup({
   notify_on_error = true,
   providers = {
     openai = {
-      api_key = nil, -- defaults to $OPENAI_API_KEY
+      api_key = nil, -- defaults to $BLINK_OPENAI_API_KEY
       model = "gpt-4o-mini",
       endpoint = "https://api.openai.com/v1/chat/completions",
       temperature = 0.1,
@@ -91,7 +91,7 @@ require("blink-ai").setup({
       extra_body = {},
     },
     anthropic = {
-      api_key = nil, -- defaults to $ANTHROPIC_API_KEY
+      api_key = nil, -- defaults to $BLINK_ANTHROPIC_API_KEY
       model = "claude-sonnet-4-20250514",
       endpoint = "https://api.anthropic.com/v1/messages",
       temperature = 0.1,
@@ -106,7 +106,7 @@ require("blink-ai").setup({
       extra_body = {},
     },
     openai_compatible = {
-      api_key = nil, -- defaults to $OPENAI_COMPATIBLE_API_KEY or $OPENAI_API_KEY
+      api_key = nil, -- defaults to $BLINK_OPENAI_COMPATIBLE_API_KEY
       model = "",
       endpoint = "",
       temperature = 0.1,
@@ -114,7 +114,7 @@ require("blink-ai").setup({
       extra_body = {},
     },
     fim = {
-      api_key = nil, -- defaults to $FIM_API_KEY
+      api_key = nil, -- defaults to $BLINK_FIM_API_KEY
       model = "",
       endpoint = "",
       fim_tokens = {
@@ -131,6 +131,17 @@ require("blink-ai").setup({
   transform_items = nil, -- fun(items) -> items
 })
 ```
+
+## Environment Variables
+
+The plugin uses its own prefixed environment variables to avoid consuming global credentials:
+
+- `BLINK_OPENAI_API_KEY`
+- `BLINK_ANTHROPIC_API_KEY`
+- `BLINK_OPENAI_COMPATIBLE_API_KEY`
+- `BLINK_FIM_API_KEY`
+
+Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignored by default.
 
 ## Providers
 
@@ -170,10 +181,10 @@ require("blink-ai").setup({
 ## Troubleshooting
 
 - Missing API key:
-  - OpenAI: `OPENAI_API_KEY`
-  - Anthropic: `ANTHROPIC_API_KEY`
-  - OpenAI-compatible: `OPENAI_COMPATIBLE_API_KEY` (or `OPENAI_API_KEY`)
-  - FIM: `FIM_API_KEY`
+  - OpenAI: `BLINK_OPENAI_API_KEY`
+  - Anthropic: `BLINK_ANTHROPIC_API_KEY`
+  - OpenAI-compatible: `BLINK_OPENAI_COMPATIBLE_API_KEY`
+  - FIM: `BLINK_FIM_API_KEY`
 - Check `:BlinkAI status` for last error and in-flight state.
 - Run `:checkhealth blink-ai` for environment and provider configuration checks.
 - Ensure `curl` is available and endpoint URLs are reachable.

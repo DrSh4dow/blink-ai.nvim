@@ -13,6 +13,7 @@ Requirements:
 Compatibility:
 - Neovim 0.10+ (CI tested on stable and v0.10.4)
 - Providers: OpenAI, Anthropic, Ollama, OpenAI-compatible, FIM
+- Global provider env vars are ignored by default; use BLINK_* vars.
 
 ==============================================================================
 SETUP                                                             *blink-ai-setup*
@@ -64,11 +65,11 @@ PROVIDERS                                                     *blink-ai-provider
 
 openai
   Chat completions over SSE.
-  Defaults to OPENAI_API_KEY.
+  Defaults to BLINK_OPENAI_API_KEY.
 
 anthropic
   Messages API over SSE.
-  Defaults to ANTHROPIC_API_KEY.
+  Defaults to BLINK_ANTHROPIC_API_KEY.
 
 ollama
   Supports /v1/chat/completions, /api/chat, and /api/generate.
@@ -76,11 +77,11 @@ ollama
 
 openai_compatible
   Generic OpenAI-style endpoint.
-  Defaults to OPENAI_COMPATIBLE_API_KEY, then OPENAI_API_KEY.
+  Defaults to BLINK_OPENAI_COMPATIBLE_API_KEY.
 
 fim
   Generic fill-in-the-middle endpoint.
-  Uses configurable fim_tokens and defaults to FIM_API_KEY.
+  Uses configurable fim_tokens and defaults to BLINK_FIM_API_KEY.
 
 ==============================================================================
 COMMANDS                                                     *blink-ai-commands*

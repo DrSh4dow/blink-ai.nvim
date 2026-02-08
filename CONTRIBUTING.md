@@ -30,6 +30,8 @@
 ## Provider Smoke Tests (Optional)
 
 1. Put credentials in `.env` (never commit it).
+   - `BLINK_OPENAI_API_KEY=...`
+   - `BLINK_ANTHROPIC_API_KEY=...`
 2. Load env vars:
    - `set -a; source .env; set +a`
 3. Run smoke check:

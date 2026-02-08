@@ -24,7 +24,7 @@ end
 local function resolve_api_key(p_opts)
   local key = p_opts.api_key
   if not key or key == "" then
-    key = os.getenv("OPENAI_API_KEY")
+    key = os.getenv("BLINK_OPENAI_API_KEY")
   end
   return key
 end
@@ -72,7 +72,7 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
     if on_error then
       on_error({
         key = "openai:api_key_missing",
-        message = "OpenAI API key is missing (set OPENAI_API_KEY or providers.openai.api_key)",
+        message = "OpenAI API key is missing (set BLINK_OPENAI_API_KEY or providers.openai.api_key)",
       })
     end
     if on_done then

@@ -24,7 +24,7 @@ end
 local function resolve_api_key(p_opts)
   local key = p_opts.api_key
   if not key or key == "" then
-    key = os.getenv("FIM_API_KEY")
+    key = os.getenv("BLINK_FIM_API_KEY")
   end
   return key
 end

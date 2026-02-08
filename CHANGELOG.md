@@ -31,3 +31,4 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Security
 - Added secret-safe local env guidance and ignore rules for `.env` files.
+- Switched provider environment variables to plugin-scoped `BLINK_*` names.

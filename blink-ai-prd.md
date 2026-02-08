@@ -200,14 +200,14 @@ require('blink-ai').setup({
   -- Provider-specific options
   providers = {
     openai = {
-      api_key = nil, -- defaults to $OPENAI_API_KEY
+      api_key = nil, -- defaults to $BLINK_OPENAI_API_KEY
       model = 'gpt-4o-mini',
       endpoint = 'https://api.openai.com/v1/chat/completions',
       temperature = 0.1,
       extra_body = {}, -- merged into the request body
     },
     anthropic = {
-      api_key = nil, -- defaults to $ANTHROPIC_API_KEY
+      api_key = nil, -- defaults to $BLINK_ANTHROPIC_API_KEY
       model = 'claude-sonnet-4-20250514',
       endpoint = 'https://api.anthropic.com/v1/messages',
       temperature = 0.1,
@@ -219,14 +219,14 @@ require('blink-ai').setup({
       extra_body = {},
     },
     openai_compatible = {
-      api_key = nil,
+      api_key = nil, -- defaults to $BLINK_OPENAI_COMPATIBLE_API_KEY
       model = '',
       endpoint = '',
       temperature = 0.1,
       extra_body = {},
     },
     fim = {
-      api_key = nil,
+      api_key = nil, -- defaults to $BLINK_FIM_API_KEY
       model = '',
       endpoint = '',
       extra_body = {},
