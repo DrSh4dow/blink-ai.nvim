@@ -48,6 +48,9 @@ providers              Provider-specific configuration.
 system_prompt          String or function(ctx) -> string override.
 transform_items        fun(items) -> items hook.
 
+Note: timeout_ms is configured in blink.cmp under
+sources.providers.ai.timeout_ms.
+
 ==============================================================================
 PROVIDERS                                                     *blink-ai-providers*
 
@@ -56,6 +59,22 @@ anthropic              Scaffold only.
 ollama                 Scaffold only.
 openai_compatible      Scaffold only.
 fim                    Scaffold only.
+
+==============================================================================
+COMMANDS                                                     *blink-ai-commands*
+
+:BlinkAI status        Show provider, model, and request stats.
+:BlinkAI toggle        Enable/disable the source globally.
+:BlinkAI provider {name}  Switch the active provider.
+:BlinkAI model {name}     Switch the model for the active provider.
+:BlinkAI clear         Cancel any in-flight request.
+
+==============================================================================
+TROUBLESHOOTING                                           *blink-ai-troubleshoot*
+
+- Missing keys notify once. Use OPENAI_API_KEY or provider config.
+- Ensure curl is available and Neovim is 0.10+.
+- Check :BlinkAI status for active provider/model and errors.
 
 ==============================================================================
 LICENSE                                                         *blink-ai-license*

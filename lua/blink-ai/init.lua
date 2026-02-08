@@ -1,6 +1,8 @@
 local config = require("blink-ai.config")
 local context = require("blink-ai.context")
+local commands = require("blink-ai.commands")
 local providers = require("blink-ai.providers")
+local state = require("blink-ai.state")
 local transform = require("blink-ai.transform")
 local util = require("blink-ai.util")
 
@@ -12,15 +14,17 @@ Source.__index = Source
 function M.setup(opts)
   config.setup(opts)
   providers.setup(config.get())
+  commands.setup()
 end
 
 function M.register_provider(name, provider)
   providers.register(name, provider)
 end
 
-function M.new(opts, _)
+function M.new(opts, provider_config)
   local self = setmetatable({}, Source)
   self.opts = opts or {}
+  self.provider_config = provider_config or {}
   self._stream_output = nil
   self._cancel = nil
 
@@ -34,6 +38,9 @@ function M.new(opts, _)
 end
 
 function Source:enabled()
+  if not state.is_enabled() then
+    return false
+  end
   local cfg = config.get()
   local provider = providers.get(cfg.provider)
   if not provider then
@@ -69,6 +76,7 @@ function Source:get_completions(ctx, callback)
       self._cancel()
       self._cancel = nil
     end
+    state.clear_cancel()
     self._debouncer.cancel()
   end
 end
@@ -86,24 +94,54 @@ function Source:_do_complete(ctx, callback)
   end
 
   local prompt_ctx = context.get(ctx, cfg)
+  local runtime_cfg = vim.tbl_deep_extend("force", {}, cfg, {
+    timeout_ms = self.provider_config.timeout_ms or self.opts.timeout_ms,
+  })
+  local started_at = state.record_request()
+
+  local finished = false
 
   local function on_chunk(output)
+    if finished then
+      return
+    end
     self._stream_output = output
-    local items = transform.items_from_output(self._stream_output, ctx, cfg)
+    local items = transform.items_from_output(self._stream_output, ctx, runtime_cfg)
     callback({ items = items, is_incomplete_forward = true })
   end
 
   local function on_done()
-    local items = transform.items_from_output(self._stream_output, ctx, cfg)
+    if finished then
+      return
+    end
+    finished = true
+    self._cancel = nil
+    state.clear_cancel()
+    state.record_success(started_at)
+    local items = transform.items_from_output(self._stream_output, ctx, runtime_cfg)
     callback({ items = items, is_incomplete_forward = false })
   end
 
   local function on_error(err)
-    util.notify(err)
+    if finished then
+      return
+    end
+    finished = true
+    self._cancel = nil
+    state.clear_cancel()
+    local message = err
+    local key = nil
+    if type(err) == "table" then
+      message = err.message or err[1] or "Request failed"
+      key = err.key
+    end
+    state.record_error(started_at, message)
+    util.notify_once(key or ("error:" .. tostring(message)), tostring(message))
     callback({ items = {}, is_incomplete_forward = false })
   end
 
-  self._cancel = provider.complete(prompt_ctx, on_chunk, on_done, on_error, cfg) or nil
+  self._cancel = provider.complete(prompt_ctx, on_chunk, on_done, on_error, runtime_cfg) or nil
+  state.set_cancel(self._cancel)
 end
 
 function Source:resolve(item, callback)

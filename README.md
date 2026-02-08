@@ -84,6 +84,21 @@ OpenAI credentials are read from `OPENAI_API_KEY` unless explicitly set in
 - `anthropic`, `ollama`, `openai_compatible`, and `fim` are scaffolded but not
   implemented yet.
 
+## Commands
+
+- `:BlinkAI status` shows the active provider, model, and request stats.
+- `:BlinkAI toggle` enables or disables the source globally.
+- `:BlinkAI provider <name>` switches the active provider at runtime.
+- `:BlinkAI model <name>` switches the model for the active provider.
+- `:BlinkAI clear` cancels any in-flight request.
+
+## Troubleshooting
+
+- If you see no AI items, confirm `:BlinkAI status` and verify the provider.
+- Missing keys will notify once; set `OPENAI_API_KEY` or `providers.openai.api_key`.
+- Ensure `curl` is on your PATH and Neovim is 0.10+.
+- `timeout_ms` is controlled by blink.cmp under `sources.providers.ai.timeout_ms`.
+
 ## License
 
 MIT

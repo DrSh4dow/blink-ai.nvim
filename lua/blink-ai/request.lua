@@ -29,19 +29,23 @@ function M.create_sse_parser(on_data, on_done)
       local event = buffer:sub(1, event_end - 1)
       buffer = buffer:sub(event_end + 2)
 
+      local data_lines = {}
       for line in event:gmatch("[^\n]+") do
         if line:sub(1, 5) == "data:" then
-          local data = vim.trim(line:sub(6))
-          if data == "[DONE]" then
-            done = true
-            if on_done then
-              on_done()
-            end
-            return
+          table.insert(data_lines, vim.trim(line:sub(6)))
+        end
+      end
+      if #data_lines > 0 then
+        local data = table.concat(data_lines, "\n")
+        if data == "[DONE]" then
+          done = true
+          if on_done then
+            on_done()
           end
-          if data ~= "" and on_data then
-            on_data(data)
-          end
+          return
+        end
+        if data ~= "" and on_data then
+          on_data(data)
         end
       end
     end
@@ -51,7 +55,10 @@ end
 function M.stream(opts)
   if not vim.system then
     if opts.on_error then
-      opts.on_error("Neovim 0.10+ is required for vim.system")
+      opts.on_error({
+        key = "request:vim_system_missing",
+        message = "Neovim 0.10+ is required for vim.system",
+      })
     end
     if opts.on_done then
       opts.on_done()
@@ -61,7 +68,7 @@ function M.stream(opts)
 
   if vim.fn.executable("curl") ~= 1 then
     if opts.on_error then
-      opts.on_error("curl is required for blink-ai")
+      opts.on_error({ key = "request:curl_missing", message = "curl is required for blink-ai" })
     end
     if opts.on_done then
       opts.on_done()
@@ -82,6 +89,7 @@ function M.stream(opts)
 
   local done = false
   local cancelled = false
+  local error_sent = false
   local timeout_timer
 
   local function on_done_once()
@@ -99,6 +107,16 @@ function M.stream(opts)
 
   local sse = M.create_sse_parser(opts.on_chunk, on_done_once)
 
+  local function emit_error(err)
+    if error_sent then
+      return
+    end
+    error_sent = true
+    if opts.on_error then
+      opts.on_error(err)
+    end
+  end
+
   local handle = vim.system(cmd, {
     text = true,
     stdin = opts.body,
@@ -114,16 +132,19 @@ function M.stream(opts)
       if cancelled then
         return
       end
-      if data and data ~= "" and opts.on_error then
-        opts.on_error(data)
+      if data and data ~= "" then
+        emit_error({ key = "request:stderr", message = vim.trim(data) })
       end
     end,
   }, function(obj)
     if cancelled then
       return
     end
-    if obj.code ~= 0 and opts.on_error then
-      opts.on_error("Request failed with exit code " .. obj.code)
+    if obj.code ~= 0 then
+      emit_error({
+        key = "request:exit_code:" .. tostring(obj.code),
+        message = "Request failed with exit code " .. obj.code,
+      })
     end
     on_done_once()
   end)
@@ -139,9 +160,7 @@ function M.stream(opts)
         if handle and handle.kill then
           handle:kill(15)
         end
-        if opts.on_error then
-          opts.on_error("Request timed out")
-        end
+        emit_error({ key = "request:timeout", message = "Request timed out" })
         on_done_once()
       end)
     end)

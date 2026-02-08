@@ -33,6 +33,55 @@ local function truncate(text, max)
   return text:sub(1, max - 3) .. "..."
 end
 
+local function ctx_cursor(ctx)
+  local cursor = (ctx and ctx.cursor) or vim.api.nvim_win_get_cursor(0)
+  return cursor[1] - 1, cursor[2]
+end
+
+local function ctx_line_text(ctx, line)
+  if ctx and type(ctx.line) == "string" then
+    return ctx.line
+  end
+  if ctx and type(ctx.line_before_cursor) == "string" and type(ctx.line_after_cursor) == "string" then
+    return ctx.line_before_cursor .. ctx.line_after_cursor
+  end
+  local bufnr = (ctx and ctx.bufnr) or 0
+  local lines = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)
+  return lines[1] or ""
+end
+
+local function keyword_start_from_ctx(ctx, line, col)
+  if ctx then
+    if type(ctx.word_start) == "number" then
+      return ctx.word_start
+    end
+    if type(ctx.keyword) == "string" then
+      return math.max(0, col - #ctx.keyword)
+    end
+    if type(ctx.word) == "string" then
+      return math.max(0, col - #ctx.word)
+    end
+    if type(ctx.offset) == "number" then
+      local candidate = ctx.offset - 1
+      if candidate >= 0 and candidate <= col then
+        return candidate
+      end
+    end
+  end
+
+  local line_text = ctx_line_text(ctx, line)
+  if line_text == "" then
+    return col
+  end
+  local before = line_text:sub(1, col)
+  local match = vim.fn.matchstrpos(before, "\\k*$")
+  local start_col = match[2]
+  if type(start_col) ~= "number" or start_col < 0 then
+    return col
+  end
+  return start_col
+end
+
 local function lsp_range_from_ctx(ctx)
   if ctx and ctx.text_edit and ctx.text_edit.range then
     return ctx.text_edit.range
@@ -40,11 +89,14 @@ local function lsp_range_from_ctx(ctx)
   if ctx and ctx.range and ctx.range.start and ctx.range["end"] then
     return ctx.range
   end
-  local cursor = (ctx and ctx.cursor) or vim.api.nvim_win_get_cursor(0)
-  local line = cursor[1] - 1
-  local col = cursor[2]
+  if ctx and ctx.bounds and ctx.bounds.start and ctx.bounds["end"] then
+    return ctx.bounds
+  end
+
+  local line, col = ctx_cursor(ctx)
+  local start_col = keyword_start_from_ctx(ctx, line, col)
   return {
-    start = { line = line, character = col },
+    start = { line = line, character = start_col },
     ["end"] = { line = line, character = col },
   }
 end

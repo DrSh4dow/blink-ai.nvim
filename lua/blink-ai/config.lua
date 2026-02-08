@@ -61,4 +61,15 @@ function M.get()
   return M.options
 end
 
+function M.set_provider(name)
+  M.options.provider = name
+end
+
+function M.set_provider_model(name, model)
+  if not M.options.providers[name] then
+    M.options.providers[name] = {}
+  end
+  M.options.providers[name].model = model
+end
+
 return M

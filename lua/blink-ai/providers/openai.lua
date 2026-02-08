@@ -21,7 +21,10 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
   local api_key = resolve_api_key()
   if not api_key or api_key == "" then
     if on_error then
-      on_error("OpenAI API key is missing (set OPENAI_API_KEY or providers.openai.api_key)")
+      on_error({
+        key = "openai:api_key_missing",
+        message = "OpenAI API key is missing (set OPENAI_API_KEY or providers.openai.api_key)",
+      })
     end
     if on_done then
       on_done()
@@ -76,6 +79,7 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
     on_chunk = handle_data,
     on_done = on_done,
     on_error = on_error,
+    timeout_ms = config.timeout_ms,
   })
 end
 
