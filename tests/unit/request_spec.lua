@@ -7,10 +7,10 @@ describe("request parser", function()
       table.insert(seen, data)
     end)
 
-    parser.push('data: {"a":')
-    parser.push('1}\n\n')
+    parser.push("data: {\"a\":")
+    parser.push("1}\n\n")
 
-    assert.are.same({ '{"a":1}' }, seen)
+    assert.are.same({ "{\"a\":1}" }, seen)
   end)
 
   it("parses multiline SSE data blocks", function()
@@ -46,10 +46,35 @@ describe("request parser", function()
       done = done + 1
     end)
 
-    parser.push('{"a":1}\n')
-    parser.push('data: {"b":2}\n[DONE]\n')
+    parser.push("{\"a\":1}\n")
+    parser.push("data: {\"b\":2}\n[DONE]\n")
 
-    assert.are.same({ '{"a":1}', '{"b":2}' }, seen)
+    assert.are.same({ "{\"a\":1}", "{\"b\":2}" }, seen)
     assert.are.equal(1, done)
+  end)
+
+  it("ignores SSE comments and flushes trailing event", function()
+    local seen = {}
+    local parser = request.create_sse_parser(function(data)
+      table.insert(seen, data)
+    end)
+
+    parser.push(": keepalive\n\n")
+    parser.push("data: tail")
+    parser.finish()
+
+    assert.are.same({ "tail" }, seen)
+  end)
+
+  it("flushes trailing JSONL line without newline", function()
+    local seen = {}
+    local parser = request.create_jsonl_parser(function(data)
+      table.insert(seen, data)
+    end)
+
+    parser.push("{\"tail\":true}")
+    parser.finish()
+
+    assert.are.same({ "{\"tail\":true}" }, seen)
   end)
 end)

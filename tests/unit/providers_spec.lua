@@ -1,0 +1,291 @@
+local function with_provider(module_name, fake_stream, run)
+  local original_request = package.loaded["blink-ai.request"]
+  local original_provider = package.loaded[module_name]
+
+  package.loaded["blink-ai.request"] = { stream = fake_stream }
+  package.loaded[module_name] = nil
+
+  local provider = require(module_name)
+  local ok, err = pcall(run, provider)
+
+  package.loaded[module_name] = original_provider
+  package.loaded["blink-ai.request"] = original_request
+
+  if not ok then
+    error(err)
+  end
+end
+
+local function base_ctx()
+  return {
+    filetype = "lua",
+    filename = "test.lua",
+    context_before_cursor = "local value = ",
+    context_after_cursor = "\nprint(value)",
+  }
+end
+
+describe("providers", function()
+  it("openai maps streaming chunks into candidate buffers", function()
+    with_provider("blink-ai.providers.openai", function(opts)
+      assert.are.equal("POST", opts.method)
+      assert.are.equal("sse", opts.stream_mode)
+      opts.on_chunk(vim.json.encode({
+        choices = {
+          { index = 0, delta = { content = "hel" } },
+        },
+      }))
+      opts.on_chunk(vim.json.encode({
+        choices = {
+          { index = 0, delta = { content = "lo" } },
+          { index = 1, delta = { content = "world" } },
+        },
+      }))
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        api_key = "test-openai-key",
+        model = "gpt-test",
+        endpoint = "https://example.invalid/openai",
+      })
+
+      local latest = {}
+      local done = false
+      local err = nil
+      provider.complete(base_ctx(), function(chunk)
+        latest = vim.deepcopy(chunk)
+      end, function()
+        done = true
+      end, function(e)
+        err = e
+      end, {
+        max_tokens = 32,
+        n_completions = 2,
+        timeout_ms = 5000,
+        effective_provider = "openai",
+        effective_provider_config = {
+          api_key = "test-openai-key",
+          model = "gpt-test",
+          endpoint = "https://example.invalid/openai",
+        },
+      })
+
+      assert.is_nil(err)
+      assert.are.equal(true, done)
+      assert.are.same({ "hello", "world" }, latest)
+    end)
+  end)
+
+  it("anthropic reads delta text and completion fallback", function()
+    with_provider("blink-ai.providers.anthropic", function(opts)
+      assert.are.equal("sse", opts.stream_mode)
+      opts.on_chunk(vim.json.encode({
+        type = "content_block_delta",
+        delta = { text = "abc" },
+      }))
+      opts.on_chunk(vim.json.encode({ completion = "def" }))
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        api_key = "test-anthropic-key",
+        endpoint = "https://example.invalid/anthropic",
+      })
+
+      local latest = {}
+      provider.complete(base_ctx(), function(chunk)
+        latest = vim.deepcopy(chunk)
+      end, function() end, function()
+        error("unexpected error callback")
+      end, {
+        max_tokens = 32,
+        n_completions = 1,
+        timeout_ms = 5000,
+        effective_provider = "anthropic",
+        effective_provider_config = {
+          api_key = "test-anthropic-key",
+          endpoint = "https://example.invalid/anthropic",
+        },
+      })
+
+      assert.are.same({ "abcdef" }, latest)
+    end)
+  end)
+
+  it("anthropic propagates structured API errors", function()
+    with_provider("blink-ai.providers.anthropic", function(opts)
+      opts.on_chunk(vim.json.encode({
+        type = "error",
+        error = { message = "quota exceeded" },
+      }))
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        api_key = "test-anthropic-key",
+        endpoint = "https://example.invalid/anthropic",
+      })
+
+      local err_message
+      provider.complete(base_ctx(), function() end, function() end, function(err)
+        err_message = err.message
+      end, {
+        max_tokens = 32,
+        n_completions = 1,
+        timeout_ms = 5000,
+        effective_provider = "anthropic",
+        effective_provider_config = {
+          api_key = "test-anthropic-key",
+          endpoint = "https://example.invalid/anthropic",
+        },
+      })
+
+      assert.are.equal("quota exceeded", err_message)
+    end)
+  end)
+
+  it("openai-compatible requires endpoint", function()
+    with_provider("blink-ai.providers.openai_compatible", function()
+      error("request.stream should not be called when endpoint is missing")
+    end, function(provider)
+      provider.setup({})
+
+      local message
+      local done = false
+      provider.complete(base_ctx(), function() end, function()
+        done = true
+      end, function(err)
+        message = err.message
+      end, {
+        max_tokens = 32,
+        n_completions = 1,
+        timeout_ms = 5000,
+        effective_provider = "openai_compatible",
+        effective_provider_config = {},
+      })
+
+      assert.are.equal(true, done)
+      assert.truthy(message:find("endpoint is required", 1, true))
+    end)
+  end)
+
+  it("openai-compatible parses streamed choices and uses auth header", function()
+    with_provider("blink-ai.providers.openai_compatible", function(opts)
+      assert.are.equal("Bearer compat-key", opts.headers.Authorization)
+      opts.on_chunk(vim.json.encode({
+        choices = {
+          { index = 0, delta = { content = "abc" } },
+          { index = 1, message = { content = "xyz" } },
+        },
+      }))
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        endpoint = "https://example.invalid/openai-compatible",
+        api_key = "compat-key",
+      })
+
+      local latest = {}
+      provider.complete(base_ctx(), function(chunk)
+        latest = vim.deepcopy(chunk)
+      end, function() end, function()
+        error("unexpected error callback")
+      end, {
+        max_tokens = 32,
+        n_completions = 2,
+        timeout_ms = 5000,
+        effective_provider = "openai_compatible",
+        effective_provider_config = {
+          endpoint = "https://example.invalid/openai-compatible",
+          api_key = "compat-key",
+        },
+      })
+
+      assert.are.same({ "abc", "xyz" }, latest)
+    end)
+  end)
+
+  it("ollama /api/generate uses FIM-style prompt field", function()
+    with_provider("blink-ai.providers.ollama", function(opts)
+      local decoded = vim.json.decode(opts.body)
+      assert.truthy(decoded.prompt:find("<cursor>", 1, true))
+      assert.is_nil(decoded.messages)
+      opts.on_chunk(vim.json.encode({ response = "result" }))
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        endpoint = "http://localhost:11434/api/generate",
+        model = "qwen2.5-coder:7b",
+      })
+
+      local latest = {}
+      provider.complete(base_ctx(), function(chunk)
+        latest = vim.deepcopy(chunk)
+      end, function() end, function()
+        error("unexpected error callback")
+      end, {
+        max_tokens = 32,
+        n_completions = 1,
+        timeout_ms = 5000,
+        effective_provider = "ollama",
+        effective_provider_config = {
+          endpoint = "http://localhost:11434/api/generate",
+          model = "qwen2.5-coder:7b",
+        },
+      })
+      assert.are.same({ "result" }, latest)
+    end)
+  end)
+
+  it("fim requires endpoint and parses choices", function()
+    with_provider("blink-ai.providers.fim", function()
+      error("request.stream should not be called when endpoint is missing")
+    end, function(provider)
+      provider.setup({})
+      local message
+      provider.complete(base_ctx(), function() end, function() end, function(err)
+        message = err.message
+      end, {
+        max_tokens = 32,
+        n_completions = 1,
+        timeout_ms = 5000,
+        effective_provider = "fim",
+        effective_provider_config = {},
+      })
+      assert.truthy(message:find("endpoint is required", 1, true))
+    end)
+
+    with_provider("blink-ai.providers.fim", function(opts)
+      opts.on_chunk(vim.json.encode({
+        choices = {
+          { index = 0, text = "chunk" },
+          { index = 1, delta = { content = "other" } },
+        },
+      }))
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        endpoint = "https://example.invalid/fim",
+      })
+      local latest = {}
+      provider.complete(base_ctx(), function(chunk)
+        latest = vim.deepcopy(chunk)
+      end, function() end, function()
+        error("unexpected error callback")
+      end, {
+        max_tokens = 32,
+        n_completions = 2,
+        timeout_ms = 5000,
+        effective_provider = "fim",
+        effective_provider_config = {
+          endpoint = "https://example.invalid/fim",
+        },
+      })
+      assert.are.same({ "chunk", "other" }, latest)
+    end)
+  end)
+end)

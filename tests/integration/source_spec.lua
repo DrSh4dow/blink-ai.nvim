@@ -97,4 +97,126 @@ describe("source integration", function()
 
     cancel_second()
   end)
+
+  it("coalesces rapid typing via debounce", function()
+    local started = 0
+
+    blink_ai.register_provider("test_debounce", {
+      name = "test_debounce",
+      setup = function() end,
+      complete = function(_, on_chunk, on_done)
+        started = started + 1
+        on_chunk({ "debounced" })
+        on_done()
+        return function() end
+      end,
+    })
+
+    blink_ai.setup({
+      provider = "test_debounce",
+      debounce_ms = 80,
+      stats = { enabled = true },
+      providers = {
+        test_debounce = { model = "test-model" },
+      },
+    })
+
+    local source = blink_ai.new({}, { timeout_ms = 1000 })
+    local bufnr = make_buffer({ "abc" })
+
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 1 },
+      keyword = "a",
+    }, function() end)
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 2 },
+      keyword = "ab",
+    }, function() end)
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 3 },
+      keyword = "abc",
+    }, function() end)
+
+    assert.truthy(vim.wait(300, function()
+      return started >= 1
+    end))
+    assert.are.equal(1, started)
+  end)
+
+  it("suppresses stale callbacks after cancellation", function()
+    local request_id = 0
+    blink_ai.register_provider("test_stale", {
+      name = "test_stale",
+      setup = function() end,
+      complete = function(_, on_chunk, on_done)
+        request_id = request_id + 1
+        local current_id = request_id
+        local cancelled = false
+
+        local delay = current_id == 1 and 120 or 10
+        vim.defer_fn(function()
+          if cancelled then
+            return
+          end
+          on_chunk({ "response-" .. tostring(current_id) })
+          on_done()
+        end, delay)
+
+        return function()
+          cancelled = true
+        end
+      end,
+    })
+
+    blink_ai.setup({
+      provider = "test_stale",
+      debounce_ms = 0,
+      stats = { enabled = true },
+      providers = {
+        test_stale = { model = "test-model" },
+      },
+    })
+
+    local source = blink_ai.new({}, { timeout_ms = 1000 })
+    local bufnr = make_buffer({ "abc" })
+    local seen = {}
+
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 2 },
+      keyword = "ab",
+    }, function(result)
+      if result.items and result.items[1] and result.items[1].textEdit then
+        table.insert(seen, result.items[1].textEdit.newText)
+      end
+    end)
+
+    vim.wait(20)
+
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 3 },
+      keyword = "abc",
+    }, function(result)
+      if result.items and result.items[1] and result.items[1].textEdit then
+        table.insert(seen, result.items[1].textEdit.newText)
+      end
+    end)
+
+    assert.truthy(vim.wait(300, function()
+      for _, text in ipairs(seen) do
+        if text == "response-2" then
+          return true
+        end
+      end
+      return false
+    end))
+
+    for _, text in ipairs(seen) do
+      assert.are_not.equal("response-1", text)
+    end
+  end)
 end)
