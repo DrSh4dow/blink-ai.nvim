@@ -150,6 +150,8 @@ Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignor
 - `paired`: emits at most 2 items per request:
   - item 1: compact single-line suggestion
   - item 2: full-form suggestion (multiline when available)
+- Streamed provider chunks are buffered internally and the completion menu is updated with the final AI result.
+- AI items use a bot icon (`󰚩`) in blink.cmp.
 
 ## Providers
 

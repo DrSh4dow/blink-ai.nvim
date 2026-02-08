@@ -61,6 +61,9 @@ transform_items             fun(items) -> items hook.
 Suggestion modes:
 - raw: return provider candidates unchanged.
 - paired: at most two items (single-line + full-form/multiline).
+- Streamed provider chunks are buffered internally and the menu updates with
+  the final AI result.
+- AI items use a bot icon (󰚩) in blink.cmp.
 
 Note: timeout_ms is configured in blink.cmp under
 sources.providers.ai.timeout_ms.

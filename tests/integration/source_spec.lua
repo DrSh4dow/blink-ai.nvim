@@ -9,7 +9,7 @@ local function make_buffer(lines)
 end
 
 describe("source integration", function()
-  it("streams incremental and final completion callbacks", function()
+  it("emits only the final completion callback for streamed output", function()
     blink_ai.register_provider("test_stream", {
       name = "test_stream",
       setup = function() end,
@@ -42,11 +42,12 @@ describe("source integration", function()
     end)
 
     assert.truthy(vim.wait(200, function()
-      return #calls >= 2
+      return #calls >= 1
     end))
-    assert.are.equal(true, calls[1].is_incomplete_forward)
-    assert.are.equal(false, calls[#calls].is_incomplete_forward)
-    assert.are.equal(1, #calls[#calls].items)
+    assert.are.equal(1, #calls)
+    assert.are.equal(false, calls[1].is_incomplete_forward)
+    assert.are.equal(1, #calls[1].items)
+    assert.are.equal("󰚩", calls[1].items[1].kind_icon)
   end)
 
   it("shapes streamed candidates into paired suggestions", function()
@@ -87,13 +88,14 @@ describe("source integration", function()
     end)
 
     assert.truthy(vim.wait(200, function()
-      return #calls >= 2
+      return #calls >= 1
     end))
 
-    local last = calls[#calls]
-    assert.are.equal(2, #last.items)
-    assert.are.equal("if condition then", last.items[1].textEdit.newText)
-    assert.truthy(last.items[2].textEdit.newText:find("\n", 1, true))
+    local final = calls[#calls]
+    assert.are.equal(1, #calls)
+    assert.are.equal(2, #final.items)
+    assert.are.equal("if condition then", final.items[1].textEdit.newText)
+    assert.truthy(final.items[2].textEdit.newText:find("\n", 1, true))
   end)
 
   it("cancels in-flight requests when superseded", function()
@@ -320,7 +322,7 @@ describe("source integration", function()
       end)
 
       assert.truthy(vim.wait(200, function()
-        return #calls >= 3
+        return #calls >= 1
       end))
       assert.are.equal(1, range_calls)
       assert.is_false(missing_fixed_range)

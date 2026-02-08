@@ -116,9 +116,6 @@ function Source:_do_complete(ctx, callback)
       return
     end
     self._stream_output = output
-    local items =
-      transform.items_from_output(self._stream_output, ctx, runtime_cfg, completion_range)
-    callback({ items = items, is_incomplete_forward = true })
   end
 
   local function on_done()

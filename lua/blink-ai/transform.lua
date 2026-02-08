@@ -185,6 +185,8 @@ function M.items_from_output(output, ctx, cfg, fixed_range)
       local item = {
         label = label,
         kind = vim.lsp.protocol.CompletionItemKind.Text,
+        kind_name = "AI",
+        kind_icon = "󰚩",
         insertTextFormat = vim.lsp.protocol.InsertTextFormat.PlainText,
         textEdit = {
           newText = text,
