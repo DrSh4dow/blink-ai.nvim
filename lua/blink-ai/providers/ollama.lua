@@ -24,7 +24,9 @@ end
 local function build_body(ctx, config, p_opts)
   local endpoint = p_opts.endpoint or "http://localhost:11434/v1/chat/completions"
   if endpoint:find("/api/generate", 1, true) then
-    local combined = (ctx.context_before_cursor or "") .. "<cursor>" .. (ctx.context_after_cursor or "")
+    local combined = (ctx.context_before_cursor or "")
+      .. "<cursor>"
+      .. (ctx.context_after_cursor or "")
     local body = {
       model = p_opts.model or "qwen2.5-coder:7b",
       prompt = combined,

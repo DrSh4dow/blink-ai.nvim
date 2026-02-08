@@ -42,7 +42,11 @@ local function ctx_line_text(ctx, line)
   if ctx and type(ctx.line) == "string" then
     return ctx.line
   end
-  if ctx and type(ctx.line_before_cursor) == "string" and type(ctx.line_after_cursor) == "string" then
+  if
+    ctx
+    and type(ctx.line_before_cursor) == "string"
+    and type(ctx.line_after_cursor) == "string"
+  then
     return ctx.line_before_cursor .. ctx.line_after_cursor
   end
   local bufnr = (ctx and ctx.bufnr) or 0

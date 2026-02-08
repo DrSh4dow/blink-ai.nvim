@@ -97,7 +97,11 @@ end
 function M.resolve_provider(filetype)
   local provider_name = M.options.provider
   local override = M.options.provider_overrides[filetype]
-  if type(override) == "table" and type(override.provider) == "string" and override.provider ~= "" then
+  if
+    type(override) == "table"
+    and type(override.provider) == "string"
+    and override.provider ~= ""
+  then
     provider_name = override.provider
   end
 

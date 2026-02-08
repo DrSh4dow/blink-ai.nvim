@@ -91,7 +91,10 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
     end
     if type(decoded.error) == "table" then
       if on_error then
-        on_error({ key = "openai_compatible:api_error", message = decoded.error.message or "Request failed" })
+        on_error({
+          key = "openai_compatible:api_error",
+          message = decoded.error.message or "Request failed",
+        })
       end
       return
     end

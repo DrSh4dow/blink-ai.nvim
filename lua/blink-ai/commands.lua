@@ -15,7 +15,15 @@ local function status_message(cfg)
     "  model: " .. (model ~= "" and model or "(none)"),
     "  metrics_enabled: " .. tostring(stats.enabled),
     "  in_flight: " .. tostring(stats.in_flight),
-    "  requests: " .. stats.requests .. " (ok " .. stats.successes .. ", errors " .. stats.errors .. ", cancels " .. stats.cancels .. ")",
+    "  requests: "
+      .. stats.requests
+      .. " (ok "
+      .. stats.successes
+      .. ", errors "
+      .. stats.errors
+      .. ", cancels "
+      .. stats.cancels
+      .. ")",
   }
   if stats.last_duration_ms then
     table.insert(lines, "  last_duration_ms: " .. stats.last_duration_ms)

@@ -39,6 +39,7 @@ function M.new(opts, provider_config)
 end
 
 function Source:enabled()
+  local _ = self
   if not state.is_enabled() then
     return false
   end
@@ -62,6 +63,7 @@ function Source:enabled()
 end
 
 function Source:get_trigger_characters()
+  local _ = self
   return {}
 end
 
@@ -155,8 +157,9 @@ function Source:_do_complete(ctx, callback)
 end
 
 function Source:resolve(item, callback)
+  local _ = self
   if not item.documentation or item.documentation == "" then
-    local text = ""
+    local text
     if item.textEdit and item.textEdit.newText then
       text = item.textEdit.newText
     elseif item.insertText then

@@ -1,7 +1,7 @@
 local M = {}
 
 local seen = {}
-local unpack_fn = table.unpack or unpack
+local unpack_fn = unpack or rawget(table, "unpack")
 
 function M.debouncer(ms, fn)
   local timer = vim.loop.new_timer()
@@ -15,7 +15,7 @@ function M.debouncer(ms, fn)
   local function call(...)
     local args = { ... }
     cancel()
-      timer:start(ms, 0, function()
+    timer:start(ms, 0, function()
       vim.schedule(function()
         fn(unpack_fn(args))
       end)
