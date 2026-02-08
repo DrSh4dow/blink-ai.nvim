@@ -114,6 +114,7 @@ TROUBLESHOOTING                                           *blink-ai-troubleshoot
 
 - Missing keys notify once. Set provider-specific env vars or config values.
 - Ensure curl is available and Neovim is 0.10+.
+- Run :checkhealth blink-ai for environment/provider diagnostics.
 - Check :BlinkAI status for active provider, model, and last error.
 - Verify your blink.cmp source uses module = "blink-ai".
 - Increase debounce_ms if requests fire too often.

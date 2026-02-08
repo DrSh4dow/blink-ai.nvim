@@ -175,6 +175,7 @@ require("blink-ai").setup({
   - OpenAI-compatible: `OPENAI_COMPATIBLE_API_KEY` (or `OPENAI_API_KEY`)
   - FIM: `FIM_API_KEY`
 - Check `:BlinkAI status` for last error and in-flight state.
+- Run `:checkhealth blink-ai` for environment and provider configuration checks.
 - Ensure `curl` is available and endpoint URLs are reachable.
 - If completions do not appear, verify blink source config includes `module = "blink-ai"`.
 - If requests are too frequent, increase `debounce_ms`.

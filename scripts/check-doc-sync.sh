@@ -22,6 +22,7 @@ shared_tokens=(
   "OPENAI_COMPATIBLE_API_KEY"
   "FIM_API_KEY"
   "timeout_ms"
+  ":checkhealth blink-ai"
 )
 
 for token in "${shared_tokens[@]}"; do
