@@ -39,14 +39,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
+          args: --check lua doc tests scripts
 
       - name: Install plenary.nvim
         run: |
           mkdir -p .tests
           git clone --depth=1 https://github.com/nvim-lua/plenary.nvim .tests/plenary.nvim
-
-      - name: Check formatting
-        run: stylua --check lua doc tests scripts
 
       - name: Lint
         run: luacheck lua tests scripts
