@@ -247,7 +247,7 @@ require('blink-ai').setup({
 
 ```lua
 {
-  'your-username/blink-ai.nvim',
+  'drsh4dow/blink-ai.nvim',
   dependencies = { 'saghen/blink.cmp' },
   opts = {
     provider = 'openai',
