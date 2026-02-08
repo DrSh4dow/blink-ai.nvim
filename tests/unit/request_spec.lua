@@ -78,3 +78,30 @@ describe("request parser", function()
     assert.are.same({ "{\"tail\":true}" }, seen)
   end)
 end)
+
+describe("request helpers", function()
+  it("extracts HTTP status marker and strips it from the payload", function()
+    local status, body = request._extract_http_status_marker(
+      "data: {\"ok\":true}\n__BLINK_HTTP_STATUS__:400:__BLINK_HTTP_STATUS_END__\n"
+    )
+
+    assert.are.equal(400, status)
+    assert.are.equal("data: {\"ok\":true}\n\n", body)
+  end)
+
+  it("extracts API error messages from JSON response bodies", function()
+    local message = request._extract_error_message_from_body(
+      "{\"error\":{\"message\":\"temperature is not supported\"}}"
+    )
+
+    assert.are.equal("temperature is not supported", message)
+  end)
+
+  it("extracts API error messages from SSE payload lines", function()
+    local message = request._extract_error_message_from_body(
+      "data: {\"type\":\"error\",\"message\":\"quota exceeded\"}\n\n"
+    )
+
+    assert.are.equal("quota exceeded", message)
+  end)
+end)

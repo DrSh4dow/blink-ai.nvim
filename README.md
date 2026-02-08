@@ -87,7 +87,6 @@ require("blink-ai").setup({
       api_key = nil, -- defaults to $BLINK_OPENAI_API_KEY
       model = "gpt-4o-mini",
       endpoint = "https://api.openai.com/v1/responses",
-      temperature = 0.1,
       headers = {},
       extra_body = {},
     },
@@ -198,7 +197,8 @@ Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignor
 - Check `:BlinkAI status` for last error and in-flight state.
 - Run `:checkhealth blink-ai` for environment and provider configuration checks.
 - Ensure `curl` is available and endpoint URLs are reachable.
-- If OpenAI models like `gpt-5.2-codex` return 404, verify provider is `openai` and endpoint is `/v1/responses`.
+- If OpenAI models like `gpt-5.2-codex` return 400, ensure `providers.openai.temperature` is unset unless your model supports it.
+- If OpenAI models return 404, verify provider is `openai` and endpoint is `/v1/responses`.
 - If completions do not appear, verify blink source config includes `module = "blink-ai"`.
 - If requests are too frequent, increase `debounce_ms`.
 - If completions time out, increase `sources.providers.ai.timeout_ms` in blink.cmp config.

@@ -128,7 +128,10 @@ TROUBLESHOOTING                                           *blink-ai-troubleshoot
 - Verify your blink.cmp source uses module = "blink-ai".
 - Increase debounce_ms if requests fire too often.
 - Increase sources.providers.ai.timeout_ms if requests time out.
-- For OpenAI models like gpt-5.2-codex, use the /v1/responses endpoint.
+- For OpenAI models like gpt-5.2-codex, unset providers.openai.temperature unless
+  the model explicitly supports it.
+- For OpenAI models returning 404, verify provider is openai and endpoint is
+  /v1/responses.
 - OpenAI-compatible/FIM endpoints may require custom extra_body fields.
 
 ==============================================================================

@@ -161,8 +161,10 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
     input = prompt.response_input(ctx),
     stream = true,
     max_output_tokens = config.max_tokens,
-    temperature = p_opts.temperature or 0.1,
   }
+  if type(p_opts.temperature) == "number" then
+    body.temperature = p_opts.temperature
+  end
   if p_opts.extra_body and next(p_opts.extra_body) ~= nil then
     body = vim.tbl_deep_extend("force", body, p_opts.extra_body)
   end

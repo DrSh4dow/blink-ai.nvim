@@ -1,4 +1,8 @@
 local M = {}
+local HTTP_STATUS_PREFIX = "__BLINK_HTTP_STATUS__:"
+local HTTP_STATUS_SUFFIX = ":__BLINK_HTTP_STATUS_END__"
+local HTTP_STATUS_PATTERN = HTTP_STATUS_PREFIX .. "(%d%d%d)" .. HTTP_STATUS_SUFFIX
+local HTTP_STATUS_TAIL_GUARD = #HTTP_STATUS_PREFIX + #HTTP_STATUS_SUFFIX + 8
 
 local function build_headers(headers)
   local args = {}
@@ -45,6 +49,112 @@ local function retry_delay_ms(base_ms, attempt)
   local exponential = base_ms * (2 ^ math.max(0, attempt - 1))
   local jitter = math.random(0, math.max(50, math.floor(base_ms / 2)))
   return exponential + jitter
+end
+
+local function parse_http_status_from_text(text)
+  if type(text) ~= "string" or text == "" then
+    return nil
+  end
+  local status = text:match("HTTP/%d+%.%d+%s+(%d%d%d)")
+    or text:match("returned error:%s*(%d%d%d)")
+    or text:match("status%s+(%d%d%d)")
+  local code = tonumber(status)
+  if code and code >= 100 and code <= 599 then
+    return code
+  end
+  return nil
+end
+
+local function extract_http_status_marker(text)
+  if type(text) ~= "string" or text == "" then
+    return nil, text or ""
+  end
+
+  local start_pos
+  local end_pos
+  local status
+  local cursor = 1
+  while true do
+    local s, e, matched = text:find(HTTP_STATUS_PATTERN, cursor)
+    if not s then
+      break
+    end
+    start_pos = s
+    end_pos = e
+    status = tonumber(matched)
+    cursor = s + 1
+  end
+
+  if not start_pos then
+    return nil, text
+  end
+
+  local cleaned = text:sub(1, start_pos - 1) .. text:sub(end_pos + 1)
+  if status and status >= 100 and status <= 599 then
+    return status, cleaned
+  end
+  return nil, cleaned
+end
+
+local function extract_error_message(decoded)
+  if type(decoded) ~= "table" then
+    return nil
+  end
+  if type(decoded.error) == "table" and type(decoded.error.message) == "string" then
+    return decoded.error.message
+  end
+  if type(decoded.error) == "string" and decoded.error ~= "" then
+    return decoded.error
+  end
+  if type(decoded.message) == "string" and decoded.message ~= "" then
+    return decoded.message
+  end
+  if type(decoded.response) == "table" and type(decoded.response.error) == "table" then
+    if type(decoded.response.error.message) == "string" then
+      return decoded.response.error.message
+    end
+  end
+  return nil
+end
+
+local function extract_error_message_from_body(body)
+  if type(body) ~= "string" then
+    return nil
+  end
+
+  local trimmed = vim.trim(body)
+  if trimmed == "" then
+    return nil
+  end
+
+  local ok, decoded = pcall(vim.json.decode, trimmed)
+  if ok then
+    local message = extract_error_message(decoded)
+    if type(message) == "string" and message ~= "" then
+      return message
+    end
+  end
+
+  for line in trimmed:gmatch("[^\n]+") do
+    local payload = vim.trim(line)
+    if payload:sub(1, 5) == "data:" then
+      payload = vim.trim(payload:sub(6))
+    end
+    if payload ~= "" and payload ~= "[DONE]" then
+      local line_ok, line_decoded = pcall(vim.json.decode, payload)
+      if line_ok then
+        local message = extract_error_message(line_decoded)
+        if type(message) == "string" and message ~= "" then
+          return message
+        end
+      end
+    end
+  end
+
+  if #trimmed > 240 then
+    return trimmed:sub(1, 237) .. "..."
+  end
+  return trimmed
 end
 
 function M.create_sse_parser(on_data, on_done)
@@ -266,7 +376,15 @@ function M.stream(opts)
     stop_timer(timeout_timer)
     timeout_timer = nil
 
-    local cmd = { "curl", "-sS", "-N", "--fail", "-X", method }
+    local cmd = {
+      "curl",
+      "-sS",
+      "-N",
+      "-X",
+      method,
+      "--write-out",
+      "\n" .. HTTP_STATUS_PREFIX .. "%{http_code}" .. HTTP_STATUS_SUFFIX .. "\n",
+    }
     for _, arg in ipairs(build_headers(opts.headers)) do
       table.insert(cmd, arg)
     end
@@ -277,6 +395,8 @@ function M.stream(opts)
     table.insert(cmd, opts.url)
 
     local stderr_parts = {}
+    local stdout_parts = {}
+    local stdout_tail = ""
     local parser = create_stream_parser(stream_mode, opts.on_chunk, on_done_once)
 
     handle = vim.system(cmd, {
@@ -287,7 +407,19 @@ function M.stream(opts)
           return
         end
         if data and data ~= "" then
-          parser.push(data)
+          table.insert(stdout_parts, data)
+          local chunk = stdout_tail .. data
+          if #chunk <= HTTP_STATUS_TAIL_GUARD then
+            stdout_tail = chunk
+            return
+          end
+
+          local emit_len = #chunk - HTTP_STATUS_TAIL_GUARD
+          local emit = chunk:sub(1, emit_len)
+          stdout_tail = chunk:sub(emit_len + 1)
+          if emit ~= "" then
+            parser.push(emit)
+          end
         end
       end,
       stderr = function(_, data)
@@ -307,16 +439,34 @@ function M.stream(opts)
         stop_timer(timeout_timer)
         timeout_timer = nil
 
+        local stderr_text = vim.trim(table.concat(stderr_parts, " "))
+        local status_from_tail, clean_tail = extract_http_status_marker(stdout_tail)
+        if clean_tail ~= "" then
+          parser.push(clean_tail)
+        end
         parser.finish()
 
-        if obj.code == 0 then
+        local status_from_body, response_body =
+          extract_http_status_marker(table.concat(stdout_parts, ""))
+        local http_status = status_from_tail
+          or status_from_body
+          or parse_http_status_from_text(stderr_text)
+
+        if obj.code == 0 and (not http_status or http_status < 400) then
           on_done_once()
           return
         end
 
-        local message = vim.trim(table.concat(stderr_parts, " "))
+        local message = extract_error_message_from_body(response_body)
+        if type(message) ~= "string" or message == "" then
+          message = stderr_text
+        end
         if message == "" then
-          message = "Request failed with exit code " .. tostring(obj.code)
+          if http_status then
+            message = "Request failed with HTTP " .. tostring(http_status)
+          else
+            message = "Request failed with exit code " .. tostring(obj.code)
+          end
         end
 
         local err = {
@@ -325,9 +475,9 @@ function M.stream(opts)
           code = obj.code,
         }
 
-        if message:find("429", 1, true) then
-          err.http_status = 429
-          err.key = "request:http_429"
+        if http_status then
+          err.http_status = http_status
+          err.key = "request:http_" .. tostring(http_status)
         end
 
         if should_retry(err) then
@@ -381,5 +531,9 @@ function M.stream(opts)
     end
   end
 end
+
+M._parse_http_status_from_text = parse_http_status_from_text
+M._extract_http_status_marker = extract_http_status_marker
+M._extract_error_message_from_body = extract_error_message_from_body
 
 return M

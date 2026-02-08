@@ -24,7 +24,6 @@ M.defaults = {
       api_key = nil,
       model = "gpt-4o-mini",
       endpoint = "https://api.openai.com/v1/responses",
-      temperature = 0.1,
       headers = {},
       extra_body = {},
     },

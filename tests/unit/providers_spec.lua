@@ -36,6 +36,7 @@ describe("providers", function()
       assert.are.equal(32, decoded.max_output_tokens)
       assert.are.equal("string", type(decoded.instructions))
       assert.are.equal("string", type(decoded.input))
+      assert.is_nil(decoded.temperature)
       assert.is_nil(decoded.messages)
       assert.is_nil(decoded.max_tokens)
       assert.is_nil(decoded.n)
@@ -80,6 +81,36 @@ describe("providers", function()
       assert.is_nil(err)
       assert.are.equal(true, done)
       assert.are.same({ "hello" }, latest)
+    end)
+  end)
+
+  it("openai includes temperature only when explicitly configured", function()
+    with_provider("blink-ai.providers.openai", function(opts)
+      local decoded = vim.json.decode(opts.body)
+      assert.are.equal(0.25, decoded.temperature)
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        api_key = "test-openai-key",
+        model = "gpt-test",
+        endpoint = "https://example.invalid/openai",
+        temperature = 0.25,
+      })
+
+      provider.complete(base_ctx(), function() end, function() end, function()
+        error("unexpected error callback")
+      end, {
+        max_tokens = 32,
+        timeout_ms = 5000,
+        effective_provider = "openai",
+        effective_provider_config = {
+          api_key = "test-openai-key",
+          model = "gpt-test",
+          endpoint = "https://example.invalid/openai",
+          temperature = 0.25,
+        },
+      })
     end)
   end)
 
