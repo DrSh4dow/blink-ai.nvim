@@ -77,7 +77,7 @@ require("blink-ai").setup({
     enable_treesitter = false,
     user_context = nil, -- fun(ctx) -> string|nil
     repo = {
-      enabled = true,
+      enabled = false, -- opt-in project file snippets (can increase latency)
       max_files = 3,
       max_lines_per_file = 80,
       max_chars_total = 6000,
@@ -218,6 +218,7 @@ Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignor
 - If OpenAI models like `gpt-5.2-codex` return 400, ensure `providers.openai.temperature` is unset unless your model supports it.
 - If OpenAI models return 404, verify provider is `openai` and endpoint is `/v1/responses`.
 - If completions do not appear, verify blink source config includes `module = "blink-ai"`.
+- If requests fail, blink-ai now notifies each error; check the exact API message in notifications and `:BlinkAI status`.
 - If `AI (thinking...)` appears too briefly or too long, tune `ui.loading_placeholder.watchdog_ms`.
 - If requests are too frequent, increase `debounce_ms`.
 - If completions time out, increase `sources.providers.ai.timeout_ms` in blink.cmp config.

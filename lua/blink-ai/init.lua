@@ -278,13 +278,11 @@ function Source:_do_complete(ctx, callback)
       return
     end
     local message = err
-    local key = nil
     if type(err) == "table" then
       message = err.message or err[1] or "Request failed"
-      key = err.key
     end
     state.record_error(req.started_at, message)
-    util.notify_once(key or ("error:" .. tostring(message)), tostring(message))
+    util.notify(tostring(message))
     self:_finalize_request(req, { items = {}, is_incomplete_forward = false })
   end
 
