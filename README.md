@@ -62,19 +62,27 @@
 ```lua
 require("blink-ai").setup({
   provider = "openai",
+  performance_profile = "fast", -- fast, balanced, quality
   provider_overrides = {
     lua = { model = "gpt-4o-mini" },
     markdown = { provider = "ollama", model = "qwen2.5-coder:7b" },
   },
-  debounce_ms = 300,
-  max_tokens = 256,
+  debounce_ms = 80, -- overridden by profile only when omitted
+  max_tokens = 96, -- overridden by profile only when omitted
   n_completions = 1,
   suggestion_mode = "raw", -- raw or paired
   context = {
-    before_cursor_lines = 50,
-    after_cursor_lines = 20,
+    before_cursor_lines = 20,
+    after_cursor_lines = 8,
     enable_treesitter = false,
     user_context = nil, -- fun(ctx) -> string|nil
+    repo = {
+      enabled = true,
+      max_files = 3,
+      max_lines_per_file = 80,
+      max_chars_total = 6000,
+      include_current_dir = true,
+    },
   },
   stats = {
     enabled = false, -- collect request counters for :BlinkAI status
@@ -86,6 +94,8 @@ require("blink-ai").setup({
     openai = {
       api_key = nil, -- defaults to $BLINK_OPENAI_API_KEY
       model = "gpt-4o-mini",
+      fast_model = "gpt-5-mini", -- used when model_strategy = "fast_for_completion"
+      model_strategy = "fast_for_completion", -- or "respect_model"
       endpoint = "https://api.openai.com/v1/responses",
       headers = {},
       extra_body = {},
@@ -149,6 +159,7 @@ Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignor
 - `paired`: emits at most 2 items per request:
   - item 1: compact single-line suggestion
   - item 2: full-form suggestion (multiline when available)
+- While a request is in flight, blink-ai emits a single `AI (thinking...)` placeholder item.
 - Streamed provider chunks are buffered internally and the completion menu is updated with the final AI result.
 - AI items use a bot icon (`󰚩`) in blink.cmp.
 
@@ -162,7 +173,7 @@ Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignor
 
 ## Commands
 
-- `:BlinkAI status` show provider/model and runtime status.
+- `:BlinkAI status` show provider, configured/effective model, and runtime status.
 - `:BlinkAI toggle` enable/disable the source globally.
 - `:BlinkAI provider <name>` switch active provider.
 - `:BlinkAI model <name>` switch model for the active provider.

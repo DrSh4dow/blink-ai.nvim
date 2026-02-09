@@ -7,6 +7,7 @@ local function default_system_prompt(ctx)
     "You are an AI code completion engine.",
     "Return only the completion text with no Markdown or explanation.",
     "The completion must fit at the <cursor> position.",
+    "Prefer a useful continuation, not a single token unless that is the only valid completion.",
     ("Filetype: %s."):format(ft),
   }
   if name ~= "" then
@@ -34,12 +35,14 @@ local function user_prompt(ctx)
   local sections = {
     "Complete code at <cursor>.",
   }
+  if ctx.repo_context and ctx.repo_context ~= "" then
+    table.insert(sections, "Related project files (truncated):\n" .. ctx.repo_context)
+  end
   if ctx.user_context and ctx.user_context ~= "" then
     table.insert(sections, "Additional project context:\n" .. ctx.user_context)
   end
   table.insert(sections, "Context before cursor:\n" .. before)
   table.insert(sections, "Context after cursor:\n" .. after)
-  table.insert(sections, "Combined:\n" .. before .. "<cursor>" .. after)
   return table.concat(sections, "\n\n")
 end
 

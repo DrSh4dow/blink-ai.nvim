@@ -6,13 +6,15 @@ local M = {}
 
 local function status_message(cfg)
   local provider = state.stats.last_provider or cfg.provider
-  local model = state.stats.last_model or (cfg.providers[provider] or {}).model or ""
+  local configured_model = (cfg.providers[provider] or {}).model or ""
+  local effective_model = state.stats.last_model or configured_model
   local stats = state.stats
   local lines = {
     "blink-ai status:",
     "  enabled: " .. tostring(state.is_enabled()),
     "  provider: " .. tostring(provider),
-    "  model: " .. (model ~= "" and model or "(none)"),
+    "  configured_model: " .. (configured_model ~= "" and configured_model or "(none)"),
+    "  effective_model: " .. (effective_model ~= "" and effective_model or "(none)"),
     "  metrics_enabled: " .. tostring(stats.enabled),
     "  in_flight: " .. tostring(stats.in_flight),
     "  requests: "

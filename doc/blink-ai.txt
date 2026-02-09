@@ -41,6 +41,7 @@ Example source wiring for blink.cmp:
 CONFIG                                                          *blink-ai-config*
 
 provider                    Active provider name.
+performance_profile         Runtime profile: fast, balanced, or quality.
 provider_overrides          Per-filetype provider/model overrides.
 debounce_ms                 Debounce delay before requests.
 max_tokens                  Max tokens requested per completion.
@@ -50,6 +51,7 @@ context.before_cursor_lines Lines before cursor to include.
 context.after_cursor_lines  Lines after cursor to include.
 context.enable_treesitter   Include syntax node metadata when available.
 context.user_context        fun(ctx) -> string|nil extra context hook.
+context.repo.*              Import-aware project snippet context.
 stats.enabled               Track local request metrics for status command.
 filetypes                   Allowlist of filetypes (empty = all).
 filetypes_exclude           Blocklist of filetypes.
@@ -61,6 +63,7 @@ transform_items             fun(items) -> items hook.
 Suggestion modes:
 - raw: return provider candidates unchanged.
 - paired: at most two items (single-line + full-form/multiline).
+- During request execution, one AI (thinking...) placeholder item is shown.
 - Streamed provider chunks are buffered internally and the menu updates with
   the final AI result.
 - AI items use a bot icon (󰚩) in blink.cmp.
@@ -74,6 +77,7 @@ PROVIDERS                                                     *blink-ai-provider
 openai
   Responses API over SSE.
   Defaults to BLINK_OPENAI_API_KEY.
+  Supports fast_model + model_strategy for typing-time routing.
 
 anthropic
   Messages API over SSE.
@@ -94,7 +98,7 @@ fim
 ==============================================================================
 COMMANDS                                                     *blink-ai-commands*
 
-:BlinkAI status              Show provider, model, and request status.
+:BlinkAI status              Show provider, configured/effective model, and request status.
 :BlinkAI toggle              Enable/disable the source globally.
 :BlinkAI provider {name}     Switch the active provider.
 :BlinkAI model {name}        Switch the model for the active provider.

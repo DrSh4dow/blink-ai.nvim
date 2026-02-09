@@ -9,7 +9,7 @@ local function make_buffer(lines)
 end
 
 describe("source integration", function()
-  it("emits only the final completion callback for streamed output", function()
+  it("emits a loading callback followed by the final completion callback", function()
     blink_ai.register_provider("test_stream", {
       name = "test_stream",
       setup = function() end,
@@ -42,12 +42,14 @@ describe("source integration", function()
     end)
 
     assert.truthy(vim.wait(200, function()
-      return #calls >= 1
+      return #calls >= 2
     end))
-    assert.are.equal(1, #calls)
-    assert.are.equal(false, calls[1].is_incomplete_forward)
-    assert.are.equal(1, #calls[1].items)
-    assert.are.equal("󰚩", calls[1].items[1].kind_icon)
+    assert.are.equal(2, #calls)
+    assert.are.equal(true, calls[1].is_incomplete_forward)
+    assert.are.equal("AI (thinking...)", calls[1].items[1].label)
+    assert.are.equal(false, calls[2].is_incomplete_forward)
+    assert.are.equal(1, #calls[2].items)
+    assert.are.equal("󰚩", calls[2].items[1].kind_icon)
   end)
 
   it("shapes streamed candidates into paired suggestions", function()
@@ -88,11 +90,11 @@ describe("source integration", function()
     end)
 
     assert.truthy(vim.wait(200, function()
-      return #calls >= 1
+      return #calls >= 2
     end))
 
     local final = calls[#calls]
-    assert.are.equal(1, #calls)
+    assert.are.equal(2, #calls)
     assert.are.equal(2, #final.items)
     assert.are.equal("if condition then", final.items[1].textEdit.newText)
     assert.truthy(final.items[2].textEdit.newText:find("\n", 1, true))
@@ -240,7 +242,10 @@ describe("source integration", function()
       keyword = "ab",
     }, function(result)
       if result.items and result.items[1] and result.items[1].textEdit then
-        table.insert(seen, result.items[1].textEdit.newText)
+        local text = result.items[1].textEdit.newText
+        if text and text ~= "" then
+          table.insert(seen, text)
+        end
       end
     end)
 
@@ -252,7 +257,10 @@ describe("source integration", function()
       keyword = "abc",
     }, function(result)
       if result.items and result.items[1] and result.items[1].textEdit then
-        table.insert(seen, result.items[1].textEdit.newText)
+        local text = result.items[1].textEdit.newText
+        if text and text ~= "" then
+          table.insert(seen, text)
+        end
       end
     end)
 
@@ -322,7 +330,7 @@ describe("source integration", function()
       end)
 
       assert.truthy(vim.wait(200, function()
-        return #calls >= 1
+        return #calls >= 2
       end))
       assert.are.equal(1, range_calls)
       assert.is_false(missing_fixed_range)
@@ -332,5 +340,46 @@ describe("source integration", function()
     transform.items_from_output = original_items
 
     assert.is_true(ok, tostring(err))
+  end)
+
+  it("uses the fast model for openai completion strategy", function()
+    local seen_model = nil
+
+    blink_ai.register_provider("openai", {
+      name = "openai",
+      setup = function() end,
+      complete = function(_, on_chunk, on_done, _, runtime_cfg)
+        seen_model = runtime_cfg.effective_provider_config.model
+        on_chunk({ "print('ok')" })
+        on_done()
+        return function() end
+      end,
+    })
+
+    blink_ai.setup({
+      provider = "openai",
+      debounce_ms = 0,
+      providers = {
+        openai = {
+          model = "gpt-5.2-codex",
+          fast_model = "gpt-5-mini",
+          model_strategy = "fast_for_completion",
+        },
+      },
+    })
+
+    local source = blink_ai.new({}, { timeout_ms = 1000 })
+    local bufnr = make_buffer({ "prin" })
+
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 4 },
+      keyword = "prin",
+    }, function() end)
+
+    assert.truthy(vim.wait(200, function()
+      return seen_model ~= nil
+    end))
+    assert.are.equal("gpt-5-mini", seen_model)
   end)
 end)

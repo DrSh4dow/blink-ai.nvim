@@ -11,6 +11,53 @@ local M = {}
 local Source = {}
 Source.__index = Source
 
+local function apply_completion_model_strategy(provider_name, provider_options)
+  if provider_name ~= "openai" or type(provider_options) ~= "table" then
+    return provider_options
+  end
+
+  local strategy = provider_options.model_strategy or "fast_for_completion"
+  if strategy ~= "fast_for_completion" then
+    return provider_options
+  end
+
+  if type(provider_options.fast_model) == "string" and provider_options.fast_model ~= "" then
+    provider_options.model = provider_options.fast_model
+  end
+
+  return provider_options
+end
+
+local function loading_item(range, provider)
+  return {
+    label = "AI (thinking...)",
+    kind = vim.lsp.protocol.CompletionItemKind.Text,
+    kind_name = "AI",
+    kind_icon = "󰚩",
+    insertTextFormat = vim.lsp.protocol.InsertTextFormat.PlainText,
+    textEdit = {
+      newText = "",
+      range = {
+        start = {
+          line = range.start.line,
+          character = range.start.character,
+        },
+        ["end"] = {
+          line = range["end"].line,
+          character = range["end"].character,
+        },
+      },
+    },
+    filterText = "",
+    sortText = "0_ai_000",
+    data = {
+      source = "blink-ai",
+      provider = provider,
+      loading = true,
+    },
+  }
+end
+
 function M.setup(opts)
   local cfg = config.setup(opts)
   state.set_stats_enabled(cfg.stats and cfg.stats.enabled)
@@ -90,6 +137,7 @@ function Source:_do_complete(ctx, callback)
   state.set_stats_enabled(cfg.stats and cfg.stats.enabled)
   local prompt_ctx = context.get(ctx, cfg)
   local provider_name, provider_options = config.resolve_provider(prompt_ctx.filetype)
+  provider_options = apply_completion_model_strategy(provider_name, provider_options)
   local provider = providers.get(provider_name)
   if not provider then
     util.notify_once(
@@ -108,6 +156,10 @@ function Source:_do_complete(ctx, callback)
   })
   local completion_range = transform.lsp_range_from_ctx(ctx)
   local started_at = state.record_request(provider_name, provider_options.model)
+  callback({
+    items = { loading_item(completion_range, provider_name) },
+    is_incomplete_forward = true,
+  })
 
   local finished = false
 

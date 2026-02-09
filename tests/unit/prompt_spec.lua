@@ -37,11 +37,15 @@ describe("prompt builders", function()
       context_before_cursor = "foo = ",
       context_after_cursor = "bar",
       user_context = "prefer short completions",
+      repo_context = "File: lua/a.lua\nreturn M",
     }
     local input = prompt.response_input(ctx)
 
     assert.truthy(input:find("prefer short completions", 1, true))
-    assert.truthy(input:find("foo = <cursor>bar", 1, true))
+    assert.truthy(input:find("Related project files (truncated):", 1, true))
+    assert.truthy(input:find("Context before cursor:\nfoo = ", 1, true))
+    assert.truthy(input:find("Context after cursor:\nbar", 1, true))
+    assert.falsy(input:find("Combined:", 1, true))
   end)
 
   it("builds fim prompt with tokens", function()
