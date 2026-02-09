@@ -25,8 +25,14 @@ local function resolve_api_key(p_opts)
   local key = p_opts.api_key
   if not key or key == "" then
     key = os.getenv("BLINK_OPENAI_API_KEY")
+      or os.getenv("OPENAI_API_KEY")
+      or os.getenv("AVANTE_OPENAI_API_KEY")
   end
   return key
+end
+
+local function is_gpt5_model(model)
+  return type(model) == "string" and model:find("^gpt%-5") ~= nil
 end
 
 local function append_text(buffers, text)
@@ -146,7 +152,7 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
     if on_error then
       on_error({
         key = "openai:api_key_missing",
-        message = "OpenAI API key is missing (set BLINK_OPENAI_API_KEY or providers.openai.api_key)",
+        message = "OpenAI API key is missing (set providers.openai.api_key or BLINK_OPENAI_API_KEY/OPENAI_API_KEY)",
       })
     end
     if on_done then
@@ -155,13 +161,27 @@ function M.complete(ctx, on_chunk, on_done, on_error, config)
     return function() end
   end
 
+  local model = p_opts.model or "gpt-4o-mini"
   local body = {
-    model = p_opts.model or "gpt-4o-mini",
+    model = model,
     instructions = prompt.system_prompt(ctx, config),
     input = prompt.response_input(ctx),
     stream = true,
     max_output_tokens = config.max_tokens,
   }
+
+  if type(p_opts.reasoning) == "table" then
+    body.reasoning = p_opts.reasoning
+  elseif is_gpt5_model(model) then
+    body.reasoning = { effort = "minimal" }
+  end
+
+  if type(p_opts.text) == "table" then
+    body.text = p_opts.text
+  elseif is_gpt5_model(model) then
+    body.text = { verbosity = "low" }
+  end
+
   if type(p_opts.temperature) == "number" then
     body.temperature = p_opts.temperature
   end

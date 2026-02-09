@@ -98,16 +98,18 @@ require("blink-ai").setup({
   notify_on_error = true,
   providers = {
     openai = {
-      api_key = nil, -- defaults to $BLINK_OPENAI_API_KEY
+      api_key = nil, -- defaults to $BLINK_OPENAI_API_KEY, then $OPENAI_API_KEY
       model = "gpt-4o-mini",
       fast_model = "gpt-5-mini", -- used when model_strategy = "fast_for_completion"
       model_strategy = "fast_for_completion", -- or "respect_model"
+      reasoning = nil, -- optional Responses API reasoning config; gpt-5 defaults to { effort = "minimal" } when unset
+      text = nil, -- optional Responses API text config; gpt-5 defaults to { verbosity = "low" } when unset
       endpoint = "https://api.openai.com/v1/responses",
       headers = {},
       extra_body = {},
     },
     anthropic = {
-      api_key = nil, -- defaults to $BLINK_ANTHROPIC_API_KEY
+      api_key = nil, -- defaults to $BLINK_ANTHROPIC_API_KEY, then $ANTHROPIC_API_KEY
       model = "claude-sonnet-4-20250514",
       endpoint = "https://api.anthropic.com/v1/messages",
       temperature = 0.1,
@@ -122,7 +124,7 @@ require("blink-ai").setup({
       extra_body = {},
     },
     openai_compatible = {
-      api_key = nil, -- defaults to $BLINK_OPENAI_COMPATIBLE_API_KEY
+      api_key = nil, -- defaults to $BLINK_OPENAI_COMPATIBLE_API_KEY, then $OPENAI_COMPATIBLE_API_KEY (and $GEMINI_API_KEY for Google endpoints)
       model = "",
       endpoint = "",
       temperature = 0.1,
@@ -150,14 +152,14 @@ require("blink-ai").setup({
 
 ## Environment Variables
 
-The plugin uses its own prefixed environment variables to avoid consuming global credentials:
+Provider key lookup prefers explicit `providers.<name>.api_key`, then environment variables:
 
-- `BLINK_OPENAI_API_KEY`
-- `BLINK_ANTHROPIC_API_KEY`
-- `BLINK_OPENAI_COMPATIBLE_API_KEY`
-- `BLINK_FIM_API_KEY`
-
-Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignored by default.
+- OpenAI: `BLINK_OPENAI_API_KEY`, `OPENAI_API_KEY`, `AVANTE_OPENAI_API_KEY`
+- Anthropic: `BLINK_ANTHROPIC_API_KEY`, `ANTHROPIC_API_KEY`, `AVANTE_ANTHROPIC_API_KEY`
+- OpenAI-compatible:
+  - Google/Gemini OpenAI-compatible endpoints: `BLINK_GEMINI_API_KEY`, `GEMINI_API_KEY`, then compatible/OpenAI vars
+  - Other endpoints: `BLINK_OPENAI_COMPATIBLE_API_KEY`, `OPENAI_COMPATIBLE_API_KEY`, then OpenAI/Gemini vars
+- FIM: `BLINK_FIM_API_KEY`
 
 ## Suggestion Shaping
 
@@ -208,15 +210,16 @@ Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignor
 ## Troubleshooting
 
 - Missing API key:
-  - OpenAI: `BLINK_OPENAI_API_KEY`
-  - Anthropic: `BLINK_ANTHROPIC_API_KEY`
-  - OpenAI-compatible: `BLINK_OPENAI_COMPATIBLE_API_KEY`
+  - OpenAI: `BLINK_OPENAI_API_KEY` or `OPENAI_API_KEY`
+  - Anthropic: `BLINK_ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY`
+  - OpenAI-compatible: `BLINK_OPENAI_COMPATIBLE_API_KEY` or `OPENAI_COMPATIBLE_API_KEY` (Gemini endpoints also support `GEMINI_API_KEY`)
   - FIM: `BLINK_FIM_API_KEY`
 - Check `:BlinkAI status` for last error and in-flight state.
 - Run `:checkhealth blink-ai` for environment and provider configuration checks.
 - Ensure `curl` is available and endpoint URLs are reachable.
 - If OpenAI models like `gpt-5.2-codex` return 400, ensure `providers.openai.temperature` is unset unless your model supports it.
 - If OpenAI models return 404, verify provider is `openai` and endpoint is `/v1/responses`.
+- For GPT-5 models returning empty results, keep `max_tokens` reasonably high (for example `96+`) and avoid overriding `providers.openai.reasoning` unless needed.
 - If completions do not appear, verify blink source config includes `module = "blink-ai"`.
 - If requests fail, blink-ai now notifies each error; check the exact API message in notifications and `:BlinkAI status`.
 - If `AI (thinking...)` appears too briefly or too long, tune `ui.loading_placeholder.watchdog_ms`.

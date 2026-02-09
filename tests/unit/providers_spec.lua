@@ -25,6 +25,32 @@ local function base_ctx()
   }
 end
 
+local function with_env(values, run)
+  local previous = {}
+  for name, value in pairs(values) do
+    previous[name] = vim.fn.getenv(name)
+    if value == nil then
+      vim.fn.setenv(name, vim.NIL)
+    else
+      vim.fn.setenv(name, value)
+    end
+  end
+
+  local ok, err = pcall(run)
+
+  for name, value in pairs(previous) do
+    if value == vim.NIL then
+      vim.fn.setenv(name, vim.NIL)
+    else
+      vim.fn.setenv(name, value)
+    end
+  end
+
+  if not ok then
+    error(err)
+  end
+end
+
 describe("providers", function()
   it("openai parses Responses API streaming chunks and request payload", function()
     with_provider("blink-ai.providers.openai", function(opts)
@@ -111,6 +137,66 @@ describe("providers", function()
           temperature = 0.25,
         },
       })
+    end)
+  end)
+
+  it("openai sets completion-safe defaults for gpt-5 models", function()
+    with_provider("blink-ai.providers.openai", function(opts)
+      local decoded = vim.json.decode(opts.body)
+      assert.are.equal("gpt-5-mini", decoded.model)
+      assert.are.same({ effort = "minimal" }, decoded.reasoning)
+      assert.are.same({ verbosity = "low" }, decoded.text)
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      provider.setup({
+        api_key = "test-openai-key",
+        model = "gpt-5-mini",
+        endpoint = "https://example.invalid/openai",
+      })
+
+      provider.complete(base_ctx(), function() end, function() end, function()
+        error("unexpected error callback")
+      end, {
+        max_tokens = 96,
+        timeout_ms = 5000,
+        effective_provider = "openai",
+        effective_provider_config = {
+          api_key = "test-openai-key",
+          model = "gpt-5-mini",
+          endpoint = "https://example.invalid/openai",
+        },
+      })
+    end)
+  end)
+
+  it("openai falls back to OPENAI_API_KEY when BLINK key is unset", function()
+    with_provider("blink-ai.providers.openai", function(opts)
+      assert.are.equal("Bearer openai-env-key", opts.headers.Authorization)
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      with_env({
+        BLINK_OPENAI_API_KEY = nil,
+        OPENAI_API_KEY = "openai-env-key",
+      }, function()
+        provider.setup({
+          model = "gpt-test",
+          endpoint = "https://example.invalid/openai",
+        })
+
+        provider.complete(base_ctx(), function() end, function() end, function()
+          error("unexpected error callback")
+        end, {
+          max_tokens = 32,
+          timeout_ms = 5000,
+          effective_provider = "openai",
+          effective_provider_config = {
+            model = "gpt-test",
+            endpoint = "https://example.invalid/openai",
+          },
+        })
+      end)
     end)
   end)
 
@@ -257,6 +343,34 @@ describe("providers", function()
     end)
   end)
 
+  it("anthropic falls back to ANTHROPIC_API_KEY when BLINK key is unset", function()
+    with_provider("blink-ai.providers.anthropic", function(opts)
+      assert.are.equal("anthropic-env-key", opts.headers["x-api-key"])
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      with_env({
+        BLINK_ANTHROPIC_API_KEY = nil,
+        ANTHROPIC_API_KEY = "anthropic-env-key",
+      }, function()
+        provider.setup({
+          endpoint = "https://example.invalid/anthropic",
+        })
+
+        provider.complete(base_ctx(), function() end, function() end, function()
+          error("unexpected error callback")
+        end, {
+          max_tokens = 32,
+          timeout_ms = 5000,
+          effective_provider = "anthropic",
+          effective_provider_config = {
+            endpoint = "https://example.invalid/anthropic",
+          },
+        })
+      end)
+    end)
+  end)
+
   it("openai-compatible requires endpoint", function()
     with_provider("blink-ai.providers.openai_compatible", function()
       error("request.stream should not be called when endpoint is missing")
@@ -316,6 +430,38 @@ describe("providers", function()
       })
 
       assert.are.same({ "abc", "xyz" }, latest)
+    end)
+  end)
+
+  it("openai-compatible uses GEMINI_API_KEY for google openai endpoints", function()
+    with_provider("blink-ai.providers.openai_compatible", function(opts)
+      assert.are.equal("Bearer gemini-env-key", opts.headers.Authorization)
+      opts.on_done()
+      return function() end
+    end, function(provider)
+      with_env({
+        BLINK_OPENAI_COMPATIBLE_API_KEY = nil,
+        OPENAI_COMPATIBLE_API_KEY = nil,
+        GEMINI_API_KEY = "gemini-env-key",
+      }, function()
+        provider.setup({
+          endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+          model = "gemini-2.5-flash",
+        })
+
+        provider.complete(base_ctx(), function() end, function() end, function()
+          error("unexpected error callback")
+        end, {
+          max_tokens = 32,
+          timeout_ms = 5000,
+          n_completions = 1,
+          effective_provider = "openai_compatible",
+          effective_provider_config = {
+            endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            model = "gemini-2.5-flash",
+          },
+        })
+      end)
     end)
   end)
 

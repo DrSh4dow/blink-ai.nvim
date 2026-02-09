@@ -60,15 +60,25 @@ local function smoke_provider(name, module_name, provider_opts)
   return true, "ok"
 end
 
+local function first_non_empty(keys)
+  for _, key in ipairs(keys) do
+    local value = os.getenv(key)
+    if value and value ~= "" then
+      return value, key
+    end
+  end
+  return nil, nil
+end
+
 local checks = {
   {
-    env = "BLINK_OPENAI_API_KEY",
+    envs = { "BLINK_OPENAI_API_KEY", "OPENAI_API_KEY", "AVANTE_OPENAI_API_KEY" },
     name = "openai",
     module = "blink-ai.providers.openai",
     opts = config.get().providers.openai,
   },
   {
-    env = "BLINK_ANTHROPIC_API_KEY",
+    envs = { "BLINK_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY", "AVANTE_ANTHROPIC_API_KEY" },
     name = "anthropic",
     module = "blink-ai.providers.anthropic",
     opts = config.get().providers.anthropic,
@@ -77,12 +87,14 @@ local checks = {
 
 local failures = {}
 for _, check in ipairs(checks) do
-  if (os.getenv(check.env) or "") == "" then
-    print(string.format("%s: SKIP (%s missing)", check.name, check.env))
+  local key, key_name = first_non_empty(check.envs or {})
+  if not key then
+    print(string.format("%s: SKIP (%s missing)", check.name, table.concat(check.envs, " or ")))
   else
-    local ok, msg = smoke_provider(check.name, check.module, check.opts)
+    local provider_opts = vim.tbl_deep_extend("force", {}, check.opts or {}, { api_key = key })
+    local ok, msg = smoke_provider(check.name, check.module, provider_opts)
     if ok then
-      print(string.format("%s: PASS (%s)", check.name, msg))
+      print(string.format("%s: PASS (%s, key=%s)", check.name, msg, key_name))
     else
       print(string.format("%s: FAIL (%s)", check.name, msg))
       table.insert(failures, check.name .. ": " .. msg)

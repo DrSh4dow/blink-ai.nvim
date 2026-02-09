@@ -24,7 +24,27 @@ end
 local function resolve_api_key(p_opts)
   local key = p_opts.api_key
   if not key or key == "" then
-    key = os.getenv("BLINK_OPENAI_COMPATIBLE_API_KEY")
+    local endpoint = string.lower(p_opts.endpoint or "")
+    local is_google_openai_compat = endpoint:find("generativelanguage.googleapis.com", 1, true)
+      or endpoint:find("googleapis.com", 1, true)
+
+    if is_google_openai_compat then
+      key = os.getenv("BLINK_GEMINI_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("BLINK_OPENAI_COMPATIBLE_API_KEY")
+        or os.getenv("OPENAI_COMPATIBLE_API_KEY")
+        or os.getenv("BLINK_OPENAI_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("AVANTE_OPENAI_API_KEY")
+    else
+      key = os.getenv("BLINK_OPENAI_COMPATIBLE_API_KEY")
+        or os.getenv("OPENAI_COMPATIBLE_API_KEY")
+        or os.getenv("BLINK_OPENAI_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("BLINK_GEMINI_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("AVANTE_OPENAI_API_KEY")
+    end
   end
   return key
 end
