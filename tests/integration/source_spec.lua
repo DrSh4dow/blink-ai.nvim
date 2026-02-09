@@ -9,7 +9,7 @@ local function make_buffer(lines)
 end
 
 describe("source integration", function()
-  it("emits a loading callback followed by the final completion callback", function()
+  it("emits only the final completion callback by default", function()
     blink_ai.register_provider("test_stream", {
       name = "test_stream",
       setup = function() end,
@@ -42,14 +42,12 @@ describe("source integration", function()
     end)
 
     assert.truthy(vim.wait(200, function()
-      return #calls >= 2
+      return #calls >= 1
     end))
-    assert.are.equal(2, #calls)
-    assert.are.equal(true, calls[1].is_incomplete_forward)
-    assert.are.equal("AI (thinking...)", calls[1].items[1].label)
-    assert.are.equal(false, calls[2].is_incomplete_forward)
-    assert.are.equal(1, #calls[2].items)
-    assert.are.equal("󰚩", calls[2].items[1].kind_icon)
+    assert.are.equal(1, #calls)
+    assert.are.equal(false, calls[1].is_incomplete_forward)
+    assert.are.equal(1, #calls[1].items)
+    assert.are.equal("󰚩", calls[1].items[1].kind_icon)
   end)
 
   it("shapes streamed candidates into paired suggestions", function()
@@ -90,11 +88,11 @@ describe("source integration", function()
     end)
 
     assert.truthy(vim.wait(200, function()
-      return #calls >= 2
+      return #calls >= 1
     end))
 
     local final = calls[#calls]
-    assert.are.equal(2, #calls)
+    assert.are.equal(1, #calls)
     assert.are.equal(2, #final.items)
     assert.are.equal("if condition then", final.items[1].textEdit.newText)
     assert.truthy(final.items[2].textEdit.newText:find("\n", 1, true))
@@ -162,6 +160,12 @@ describe("source integration", function()
     blink_ai.setup({
       provider = "test_cancel_clear",
       debounce_ms = 0,
+      ui = {
+        loading_placeholder = {
+          enabled = true,
+          watchdog_ms = 1200,
+        },
+      },
       stats = { enabled = true },
       providers = {
         test_cancel_clear = { model = "test-model" },
@@ -209,6 +213,12 @@ describe("source integration", function()
     blink_ai.setup({
       provider = "test_error_clear",
       debounce_ms = 0,
+      ui = {
+        loading_placeholder = {
+          enabled = true,
+          watchdog_ms = 1200,
+        },
+      },
       notify_on_error = false,
       stats = { enabled = true },
       providers = {
@@ -364,59 +374,55 @@ describe("source integration", function()
     end
   end)
 
-  it(
-    "auto-clears loading placeholder via watchdog and still emits late final completion",
-    function()
-      blink_ai.register_provider("test_watchdog", {
-        name = "test_watchdog",
-        setup = function() end,
-        complete = function(_, on_chunk, on_done)
-          vim.defer_fn(function()
-            on_chunk({ "watchdog-final" })
-            on_done()
-          end, 120)
-          return function() end
-        end,
-      })
+  it("auto-clears loading placeholder via watchdog and suppresses late final completion", function()
+    blink_ai.register_provider("test_watchdog", {
+      name = "test_watchdog",
+      setup = function() end,
+      complete = function(_, on_chunk, on_done)
+        vim.defer_fn(function()
+          on_chunk({ "watchdog-final" })
+          on_done()
+        end, 120)
+        return function() end
+      end,
+    })
 
-      blink_ai.setup({
-        provider = "test_watchdog",
-        debounce_ms = 0,
-        ui = {
-          loading_placeholder = {
-            enabled = true,
-            watchdog_ms = 30,
-          },
+    blink_ai.setup({
+      provider = "test_watchdog",
+      debounce_ms = 0,
+      ui = {
+        loading_placeholder = {
+          enabled = true,
+          watchdog_ms = 30,
         },
-        stats = { enabled = true },
-        providers = {
-          test_watchdog = { model = "test-model" },
-        },
-      })
+      },
+      stats = { enabled = true },
+      providers = {
+        test_watchdog = { model = "test-model" },
+      },
+    })
 
-      local source = blink_ai.new({}, { timeout_ms = 1000 })
-      local bufnr = make_buffer({ "abc" })
-      local calls = {}
+    local source = blink_ai.new({}, { timeout_ms = 1000 })
+    local bufnr = make_buffer({ "abc" })
+    local calls = {}
 
-      source:get_completions({
-        bufnr = bufnr,
-        cursor = { 1, 3 },
-        keyword = "abc",
-      }, function(result)
-        table.insert(calls, result)
-      end)
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 3 },
+      keyword = "abc",
+    }, function(result)
+      table.insert(calls, result)
+    end)
 
-      assert.truthy(vim.wait(500, function()
-        return #calls >= 3
-      end))
+    assert.truthy(vim.wait(500, function()
+      return #calls >= 2
+    end))
 
-      assert.are.equal("AI (thinking...)", calls[1].items[1].label)
-      assert.are.equal(true, calls[2].is_incomplete_forward)
-      assert.are.equal(0, #calls[2].items)
-      assert.are.equal(false, calls[3].is_incomplete_forward)
-      assert.are.equal("watchdog-final", calls[3].items[1].textEdit.newText)
-    end
-  )
+    assert.are.equal("AI (thinking...)", calls[1].items[1].label)
+    assert.are.equal(false, calls[2].is_incomplete_forward)
+    assert.are.equal(0, #calls[2].items)
+    assert.are.equal(2, #calls)
+  end)
 
   it("precomputes completion range once for streaming callbacks", function()
     blink_ai.register_provider("test_fixed_range", {
@@ -470,7 +476,7 @@ describe("source integration", function()
       end)
 
       assert.truthy(vim.wait(200, function()
-        return #calls >= 2
+        return #calls >= 1
       end))
       assert.are.equal(1, range_calls)
       assert.is_false(missing_fixed_range)

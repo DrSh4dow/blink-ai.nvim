@@ -64,8 +64,8 @@ transform_items             fun(items) -> items hook.
 Suggestion modes:
 - raw: return provider candidates unchanged.
 - paired: at most two items (single-line + full-form/multiline).
-- During request execution, one AI (thinking...) placeholder item is shown.
-- Stalled requests auto-clear the placeholder after ui.loading_placeholder.watchdog_ms.
+- Optional: with ui.loading_placeholder.enabled=true, one AI (thinking...) row is shown.
+- If enabled, stalled requests auto-clear after ui.loading_placeholder.watchdog_ms.
 - Streamed provider chunks are buffered internally and the menu updates with
   the final AI result.
 - AI items use a bot icon (󰚩) in blink.cmp.

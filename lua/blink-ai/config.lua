@@ -46,7 +46,7 @@ M.defaults = {
   },
   ui = {
     loading_placeholder = {
-      enabled = true,
+      enabled = false,
       watchdog_ms = 1200,
     },
   },

@@ -129,17 +129,6 @@ function Source:_is_active_request(req)
   return self._active_request ~= nil and self._active_request.id == req.id
 end
 
-function Source:_clear_loading(req, is_incomplete_forward)
-  if not self:_is_active_request(req) or not req.loading_visible then
-    return
-  end
-  req.loading_visible = false
-  emit(req, {
-    items = {},
-    is_incomplete_forward = is_incomplete_forward,
-  })
-end
-
 function Source:_finalize_request(req, payload)
   if not req or req.finished then
     return
@@ -258,7 +247,10 @@ function Source:_do_complete(ctx, callback)
             return
           end
           stop_request_watchdog(req)
-          self:_clear_loading(req, true)
+          if type(req.provider_cancel) == "function" then
+            req.provider_cancel()
+          end
+          self:_finalize_request(req, { items = {}, is_incomplete_forward = false })
         end)
       end)
     end

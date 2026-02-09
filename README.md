@@ -89,7 +89,7 @@ require("blink-ai").setup({
   },
   ui = {
     loading_placeholder = {
-      enabled = true, -- show "AI (thinking...)" while request is active
+      enabled = false, -- optional: show "AI (thinking...)" while request is active
       watchdog_ms = 1200, -- auto-clear placeholder if request stalls
     },
   },
@@ -165,8 +165,8 @@ Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignor
 - `paired`: emits at most 2 items per request:
   - item 1: compact single-line suggestion
   - item 2: full-form suggestion (multiline when available)
-- While a request is in flight, blink-ai emits a single `AI (thinking...)` placeholder item.
-- If a request stalls, the placeholder is automatically cleared after `ui.loading_placeholder.watchdog_ms`.
+- Optional: if `ui.loading_placeholder.enabled = true`, blink-ai emits a single `AI (thinking...)` row while a request is active.
+- If enabled and a request stalls, the placeholder is auto-cleared after `ui.loading_placeholder.watchdog_ms`.
 - Streamed provider chunks are buffered internally and the completion menu is updated with the final AI result.
 - AI items use a bot icon (`󰚩`) in blink.cmp.
 
