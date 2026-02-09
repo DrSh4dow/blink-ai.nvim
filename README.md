@@ -87,6 +87,12 @@ require("blink-ai").setup({
   stats = {
     enabled = false, -- collect request counters for :BlinkAI status
   },
+  ui = {
+    loading_placeholder = {
+      enabled = true, -- show "AI (thinking...)" while request is active
+      watchdog_ms = 1200, -- auto-clear placeholder if request stalls
+    },
+  },
   filetypes = {},
   filetypes_exclude = { "TelescopePrompt", "NvimTree", "neo-tree", "oil" },
   notify_on_error = true,
@@ -160,6 +166,7 @@ Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignor
   - item 1: compact single-line suggestion
   - item 2: full-form suggestion (multiline when available)
 - While a request is in flight, blink-ai emits a single `AI (thinking...)` placeholder item.
+- If a request stalls, the placeholder is automatically cleared after `ui.loading_placeholder.watchdog_ms`.
 - Streamed provider chunks are buffered internally and the completion menu is updated with the final AI result.
 - AI items use a bot icon (`󰚩`) in blink.cmp.
 
@@ -211,6 +218,7 @@ Global provider variables (for example `OPENAI_API_KEY`) are intentionally ignor
 - If OpenAI models like `gpt-5.2-codex` return 400, ensure `providers.openai.temperature` is unset unless your model supports it.
 - If OpenAI models return 404, verify provider is `openai` and endpoint is `/v1/responses`.
 - If completions do not appear, verify blink source config includes `module = "blink-ai"`.
+- If `AI (thinking...)` appears too briefly or too long, tune `ui.loading_placeholder.watchdog_ms`.
 - If requests are too frequent, increase `debounce_ms`.
 - If completions time out, increase `sources.providers.ai.timeout_ms` in blink.cmp config.
 

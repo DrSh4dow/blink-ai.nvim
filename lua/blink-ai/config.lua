@@ -44,6 +44,12 @@ M.defaults = {
   stats = {
     enabled = false,
   },
+  ui = {
+    loading_placeholder = {
+      enabled = true,
+      watchdog_ms = 1200,
+    },
+  },
   filetypes = {},
   filetypes_exclude = { "TelescopePrompt", "NvimTree", "neo-tree", "oil" },
   notify_on_error = true,

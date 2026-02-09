@@ -53,6 +53,7 @@ context.enable_treesitter   Include syntax node metadata when available.
 context.user_context        fun(ctx) -> string|nil extra context hook.
 context.repo.*              Import-aware project snippet context.
 stats.enabled               Track local request metrics for status command.
+ui.loading_placeholder.*    In-menu loading row + watchdog timeout behavior.
 filetypes                   Allowlist of filetypes (empty = all).
 filetypes_exclude           Blocklist of filetypes.
 notify_on_error             Notify via vim.notify on errors.
@@ -64,6 +65,7 @@ Suggestion modes:
 - raw: return provider candidates unchanged.
 - paired: at most two items (single-line + full-form/multiline).
 - During request execution, one AI (thinking...) placeholder item is shown.
+- Stalled requests auto-clear the placeholder after ui.loading_placeholder.watchdog_ms.
 - Streamed provider chunks are buffered internally and the menu updates with
   the final AI result.
 - AI items use a bot icon (󰚩) in blink.cmp.
@@ -130,6 +132,7 @@ TROUBLESHOOTING                                           *blink-ai-troubleshoot
 - Run :checkhealth blink-ai for environment/provider diagnostics.
 - Check :BlinkAI status for active provider, model, and last error.
 - Verify your blink.cmp source uses module = "blink-ai".
+- Tune ui.loading_placeholder.watchdog_ms if the loading row clears too soon/late.
 - Increase debounce_ms if requests fire too often.
 - Increase sources.providers.ai.timeout_ms if requests time out.
 - For OpenAI models like gpt-5.2-codex, unset providers.openai.temperature unless
