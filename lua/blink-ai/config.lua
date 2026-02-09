@@ -7,25 +7,27 @@ M.defaults = {
   profiles = {
     fast = {
       debounce_ms = 80,
-      max_tokens = 96,
+      max_tokens = 64,
       before_cursor_lines = 20,
       after_cursor_lines = 8,
     },
     balanced = {
       debounce_ms = 180,
-      max_tokens = 160,
+      max_tokens = 96,
       before_cursor_lines = 40,
       after_cursor_lines = 16,
     },
     quality = {
       debounce_ms = 300,
-      max_tokens = 256,
+      max_tokens = 160,
       before_cursor_lines = 60,
       after_cursor_lines = 24,
     },
   },
   debounce_ms = 300,
-  max_tokens = 256,
+  max_tokens = 160,
+  completion_scope = "line",
+  line_max_tokens = 64,
   n_completions = 1,
   suggestion_mode = "raw",
   context = {

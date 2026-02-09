@@ -45,6 +45,8 @@ performance_profile         Runtime profile: fast, balanced, or quality.
 provider_overrides          Per-filetype provider/model overrides.
 debounce_ms                 Debounce delay before requests.
 max_tokens                  Max tokens requested per completion.
+completion_scope            "line" (default) or "block".
+line_max_tokens             Token cap when completion_scope is "line".
 n_completions               Number of completion candidates.
 suggestion_mode             "raw" (default) or "paired" output shaping.
 context.before_cursor_lines Lines before cursor to include.
@@ -62,8 +64,10 @@ system_prompt               String or function(ctx) -> string override.
 transform_items             fun(items) -> items hook.
 
 Suggestion modes:
-- raw: return provider candidates unchanged.
-- paired: at most two items (single-line + full-form/multiline).
+- completion_scope=line (default): exactly one same-line item (newlines stripped).
+- completion_scope=block:
+  raw: return provider candidates unchanged.
+  paired: at most two items (single-line + full-form/multiline).
 - Optional: with ui.loading_placeholder.enabled=true, one AI (thinking...) row is shown.
 - If enabled, stalled requests auto-clear after ui.loading_placeholder.watchdog_ms.
 - Streamed provider chunks are buffered internally and the menu updates with

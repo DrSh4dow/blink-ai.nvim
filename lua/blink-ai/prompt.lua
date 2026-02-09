@@ -7,7 +7,8 @@ local function default_system_prompt(ctx)
     "You are an AI code completion engine.",
     "Return only the completion text with no Markdown or explanation.",
     "The completion must fit at the <cursor> position.",
-    "Prefer a useful continuation, not a single token unless that is the only valid completion.",
+    "Complete only the current line. Do not emit newline characters.",
+    "Prefer a useful same-line continuation, not a single token unless that is the only valid completion.",
     ("Filetype: %s."):format(ft),
   }
   if name ~= "" then

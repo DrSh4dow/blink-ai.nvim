@@ -68,9 +68,11 @@ require("blink-ai").setup({
     markdown = { provider = "ollama", model = "qwen2.5-coder:7b" },
   },
   debounce_ms = 80, -- overridden by profile only when omitted
-  max_tokens = 96, -- overridden by profile only when omitted
+  max_tokens = 96, -- upper bound, overridden by profile only when omitted
+  completion_scope = "line", -- line (default) or block
+  line_max_tokens = 64, -- hard cap used when completion_scope = "line"
   n_completions = 1,
-  suggestion_mode = "raw", -- raw or paired
+  suggestion_mode = "raw", -- raw or paired (applies when completion_scope = "block")
   context = {
     before_cursor_lines = 20,
     after_cursor_lines = 8,
@@ -163,8 +165,10 @@ Provider key lookup prefers explicit `providers.<name>.api_key`, then environmen
 
 ## Suggestion Shaping
 
-- `raw` (default): returns provider candidates as-is.
-- `paired`: emits at most 2 items per request:
+- `completion_scope = "line"` (default): emits exactly 1 same-line suggestion (newlines are stripped).
+- `completion_scope = "block"`: enables multiline shaping modes:
+  - `raw`: returns provider candidates as-is.
+  - `paired`: emits at most 2 items per request:
   - item 1: compact single-line suggestion
   - item 2: full-form suggestion (multiline when available)
 - Optional: if `ui.loading_placeholder.enabled = true`, blink-ai emits a single `AI (thinking...)` row while a request is active.
@@ -219,7 +223,7 @@ Provider key lookup prefers explicit `providers.<name>.api_key`, then environmen
 - Ensure `curl` is available and endpoint URLs are reachable.
 - If OpenAI models like `gpt-5.2-codex` return 400, ensure `providers.openai.temperature` is unset unless your model supports it.
 - If OpenAI models return 404, verify provider is `openai` and endpoint is `/v1/responses`.
-- For GPT-5 models returning empty results, keep `max_tokens` reasonably high (for example `96+`) and avoid overriding `providers.openai.reasoning` unless needed.
+- If line completions are too short, increase `line_max_tokens` (for example `80`).
 - If completions do not appear, verify blink source config includes `module = "blink-ai"`.
 - If requests fail, blink-ai now notifies each error; check the exact API message in notifications and `:BlinkAI status`.
 - If `AI (thinking...)` appears too briefly or too long, tune `ui.loading_placeholder.watchdog_ms`.

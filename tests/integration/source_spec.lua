@@ -68,6 +68,7 @@ describe("source integration", function()
     blink_ai.setup({
       provider = "test_paired",
       debounce_ms = 0,
+      completion_scope = "block",
       suggestion_mode = "paired",
       stats = { enabled = true },
       providers = {
@@ -96,6 +97,52 @@ describe("source integration", function()
     assert.are.equal(2, #final.items)
     assert.are.equal("if condition then", final.items[1].textEdit.newText)
     assert.truthy(final.items[2].textEdit.newText:find("\n", 1, true))
+  end)
+
+  it("returns a single same-line suggestion in line scope", function()
+    blink_ai.register_provider("test_line_scope", {
+      name = "test_line_scope",
+      setup = function() end,
+      complete = function(_, on_chunk, on_done)
+        on_chunk({
+          "if condition then\n  print('value')\nend",
+          "fallback",
+        })
+        on_done()
+        return function() end
+      end,
+    })
+
+    blink_ai.setup({
+      provider = "test_line_scope",
+      debounce_ms = 0,
+      completion_scope = "line",
+      stats = { enabled = true },
+      providers = {
+        test_line_scope = { model = "test-model" },
+      },
+    })
+
+    local source = blink_ai.new({}, { timeout_ms = 1000 })
+    local bufnr = make_buffer({ "if condition" })
+    local calls = {}
+
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 12 },
+      keyword = "condition",
+    }, function(result)
+      table.insert(calls, result)
+    end)
+
+    assert.truthy(vim.wait(200, function()
+      return #calls >= 1
+    end))
+
+    local final = calls[#calls]
+    assert.are.equal(1, #final.items)
+    assert.are.equal("if condition then", final.items[1].textEdit.newText)
+    assert.falsy(final.items[1].textEdit.newText:find("\n", 1, true))
   end)
 
   it("cancels in-flight requests when superseded", function()
@@ -527,5 +574,45 @@ describe("source integration", function()
       return seen_model ~= nil
     end))
     assert.are.equal("gpt-5-mini", seen_model)
+  end)
+
+  it("caps max_tokens in line completion scope", function()
+    local seen_max_tokens = nil
+
+    blink_ai.register_provider("test_line_tokens", {
+      name = "test_line_tokens",
+      setup = function() end,
+      complete = function(_, on_chunk, on_done, _, runtime_cfg)
+        seen_max_tokens = runtime_cfg.max_tokens
+        on_chunk({ "print('ok')" })
+        on_done()
+        return function() end
+      end,
+    })
+
+    blink_ai.setup({
+      provider = "test_line_tokens",
+      debounce_ms = 0,
+      completion_scope = "line",
+      max_tokens = 160,
+      line_max_tokens = 48,
+      providers = {
+        test_line_tokens = { model = "test-model" },
+      },
+    })
+
+    local source = blink_ai.new({}, { timeout_ms = 1000 })
+    local bufnr = make_buffer({ "prin" })
+
+    source:get_completions({
+      bufnr = bufnr,
+      cursor = { 1, 4 },
+      keyword = "prin",
+    }, function() end)
+
+    assert.truthy(vim.wait(200, function()
+      return seen_max_tokens ~= nil
+    end))
+    assert.are.equal(48, seen_max_tokens)
   end)
 end)

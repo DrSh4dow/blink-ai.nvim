@@ -169,11 +169,28 @@ local function paired_entries(entries)
   return { single_line }
 end
 
+local function line_entries(entries)
+  for _, text in ipairs(entries) do
+    if type(text) == "string" then
+      local line = single_line_variant(text)
+      if not is_blank(line) then
+        return { line }
+      end
+    end
+  end
+  return {}
+end
+
 function M.items_from_output(output, ctx, cfg, fixed_range)
   local entries = normalize_output(output)
-  local suggestion_mode = (cfg and cfg.suggestion_mode) or "paired"
-  if suggestion_mode == "paired" then
-    entries = paired_entries(entries)
+  local completion_scope = (cfg and cfg.completion_scope) or "line"
+  if completion_scope == "line" then
+    entries = line_entries(entries)
+  else
+    local suggestion_mode = (cfg and cfg.suggestion_mode) or "paired"
+    if suggestion_mode == "paired" then
+      entries = paired_entries(entries)
+    end
   end
   local items = {}
   local provider = cfg and (cfg.effective_provider or cfg.provider) or "unknown"

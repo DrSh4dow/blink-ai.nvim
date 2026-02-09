@@ -11,6 +11,7 @@ local M = {}
 local Source = {}
 Source.__index = Source
 local DEFAULT_LOADING_WATCHDOG_MS = 1200
+local DEFAULT_LINE_MAX_TOKENS = 64
 
 local function apply_completion_model_strategy(provider_name, provider_options)
   if provider_name ~= "openai" or type(provider_options) ~= "table" then
@@ -91,6 +92,25 @@ local function emit(req, payload)
     return
   end
   req.callback(payload)
+end
+
+local function resolve_max_tokens(cfg)
+  local configured = tonumber(cfg.max_tokens) or 0
+  if configured <= 0 then
+    configured = DEFAULT_LINE_MAX_TOKENS
+  end
+
+  local scope = cfg.completion_scope or "line"
+  if scope ~= "line" then
+    return configured
+  end
+
+  local line_max = tonumber(cfg.line_max_tokens) or DEFAULT_LINE_MAX_TOKENS
+  if line_max <= 0 then
+    return configured
+  end
+
+  return math.min(configured, line_max)
 end
 
 function M.setup(opts)
@@ -216,6 +236,7 @@ function Source:_do_complete(ctx, callback)
     provider = provider_name,
     effective_provider = provider_name,
     effective_provider_config = provider_options,
+    max_tokens = resolve_max_tokens(cfg),
     timeout_ms = self.provider_config.timeout_ms or self.opts.timeout_ms,
   })
   self._request_seq = self._request_seq + 1

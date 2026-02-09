@@ -11,6 +11,7 @@ describe("transform.items_from_output", function()
       keyword = "abc",
     }, {
       effective_provider = "openai",
+      completion_scope = "block",
       suggestion_mode = "paired",
     })
 
@@ -31,6 +32,7 @@ describe("transform.items_from_output", function()
       cursor = { 1, 3 },
       keyword = "abc",
     }, {
+      completion_scope = "block",
       suggestion_mode = "raw",
     })
 
@@ -46,6 +48,7 @@ describe("transform.items_from_output", function()
       line_before_cursor = "return value",
       line_after_cursor = "",
     }, {
+      completion_scope = "block",
       suggestion_mode = "paired",
     })
 
@@ -92,15 +95,39 @@ describe("transform.items_from_output", function()
       start = { line = 0, character = 2 },
       ["end"] = { line = 0, character = 6 },
     }
-    local items = transform.items_from_output({
-      "if value then",
-      "if value then\n  print(value)\nend",
-    }, nil, {}, range)
+    local items = transform.items_from_output(
+      {
+        "if value then",
+        "if value then\n  print(value)\nend",
+      },
+      nil,
+      {
+        completion_scope = "block",
+      },
+      range
+    )
 
     assert.are.equal(2, #items)
     assert.are.equal(2, items[1].textEdit.range.start.character)
     assert.are.equal(6, items[1].textEdit.range["end"].character)
     assert.are.equal(2, items[2].textEdit.range.start.character)
     assert.are.equal(6, items[2].textEdit.range["end"].character)
+  end)
+
+  it("forces a single same-line completion in line scope", function()
+    local items = transform.items_from_output({
+      "if value then\n  print(value)\nend",
+      "fallback",
+    }, {
+      cursor = { 1, 3 },
+      keyword = "if",
+    }, {
+      completion_scope = "line",
+      suggestion_mode = "paired",
+    })
+
+    assert.are.equal(1, #items)
+    assert.are.equal("if value then", items[1].textEdit.newText)
+    assert.falsy(items[1].textEdit.newText:find("\n", 1, true))
   end)
 end)
